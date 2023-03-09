@@ -1,0 +1,51 @@
+### ansible-playbook onlyRepbin.yml -i seal_hosts -e "@baseDeployConf.yml"
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: 删除lotus.tar
+      file:
+        path: /tmp/lotus.tar
+        state: absent
+
+    - name: "下载bin文件"
+      get_url:
+        url: "{{ downloadBinUrl }}"
+        dest: "/tmp/lotus.tar"
+      when: downloadBinMode is defined and downloadBinMode=="true"
+
+- hosts: "master"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 复制lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.tar"
+        dest: "~/bin/lotus.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: downloadBinMode == "true"
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf lotus.tar; chmod 750 lotus; chmod 750 lotus-storage-miner"
+      when: downloadBinMode == "true"
+
+- hosts: "slave"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 复制lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.tar"
+        dest: "~/bin/lotus.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: downloadBinMode == "true"
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf lotus.tar; chmod 750 lotus-*"
+      when: downloadBinMode == "true"

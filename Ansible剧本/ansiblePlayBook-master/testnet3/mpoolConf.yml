@@ -1,0 +1,28 @@
+---
+minerUser: 'devnet'
+
+############ 在私网搭建矿池相关配置 #######
+isPrivateNet: false
+genesisPeerID: '/ip4/43.254.11.178/tcp/45187/p2p/12D3KooWL32zKrDnVaw8HzJMKBp4cF7Nr9RbP1d82WNqDLiGqLwB'
+downloadGenesisFileUrl: 'http://43.254.11.178:8090/devnet.car'
+tapUrl: 'http://43.254.11.178:9292'
+
+############ 部署通用的配置 #######
+downloadBinMode: true
+initNewNodeMode: true
+killDaemonMode: true
+GroupName: 'nmg180'
+#sectorSize: 34359738368
+
+############ 部署master的相关配置 #######
+masterBinUrl: 'http://file.valuechain.group/mpool-poster-0103.private.gpu.tar?OSSAccessKeyId=LTAI4Fn4zCozDjaJL3eJ6Vja&Expires=1580718437&Signature=uhr5NSFsSHIakpbm8hPLUqJK90g%3D'
+masterUseGpu: 'false'
+
+############ 部署slave的相关配置 #######
+slaveBinUrl: 'http://file.valuechain.group/mpool-poster-0103.private.gpu.tar?OSSAccessKeyId=LTAI4Fn4zCozDjaJL3eJ6Vja&Expires=1580718437&Signature=uhr5NSFsSHIakpbm8hPLUqJK90g%3D'
+slaveUseGpu: false
+#slave必须填写master节点的storage miner的ID
+masterID: ''
+#slave配置默认值根据需要修改
+#slavePreCommitCount: 1
+#slaveCommittingCount: 1

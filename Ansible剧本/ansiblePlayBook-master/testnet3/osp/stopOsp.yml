@@ -1,0 +1,7 @@
+- hosts: all
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name:  停止整个provider和worker
+      shell: ps -u $USER -ef |grep osp |awk '{print $2}' |xargs kill -9
+      ignore_errors: True

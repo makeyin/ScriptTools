@@ -1,0 +1,21 @@
+#### 查看slave状态
+#### ansible-playbook checkMasterStatus.yml -i cz_host -e "minerUser=devnet"
+---
+- hosts: all
+  gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 创建bin目录
+      #shell: logfile=`ls -lt ~/log | awk '{print $NF}' | grep slave-miner | head -1`; grep "PreCommit完成 通知Master上链" ~/log/$logfile | awk -F':' '{print $1}' | uniq -c | tail -5
+      shell: logfile=`ls -lt ~/log | awk '{print $NF}' | grep storage-miner | head -1`; grep "Proving sector" ~/log/$logfile | awk -F':' '{print $1}' | uniq -c | tail -5
+      register: seal
+
+    - name: check log
+      debug:
+        msg: "{{seal.stdout_lines}}"
+
+    - name: 生成monitor结果文件到中控机
+      shell: echo {{ inventory_hostname }},{{ seal.stdout_lines }}"\n" >> /home/ansible/ansiblePlayBook/lotus/script/master_proving_status.txt
+      connection: local

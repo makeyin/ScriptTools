@@ -1,0 +1,106 @@
+### ansible-playbook repBin.yml -i seal_hosts -e "@baseDeployConf.yml"
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: 删除lotus.tar
+      file:
+        path: /tmp/lotus.tar
+        state: absent
+
+    - name: "下载bin文件"
+      get_url:
+        url: "{{ downloadBinUrl }}"
+        dest: "/tmp/lotus.tar"
+      when: downloadBinMode is defined and downloadBinMode=="true"
+
+- hosts: "master"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  - masterRestart: true
+  - downloadScriptFile: false
+  - useGPU: true
+  tasks:
+    - name: 复制lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.tar"
+        dest: "~/bin/lotus.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: downloadBinMode == "true"
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf lotus.tar; chmod 750 lotus; chmod 750 lotus-storage-miner"
+      when: downloadBinMode == "true"
+
+    - name: 复制view_lotus_gpu_super_saveMem.sh更新view_lotus.sh文件
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "script/view_lotus_gpu_super_saveMem.sh"
+        mode: 0750
+      when: downloadScriptFile == true and useGPU == true
+
+    - name: 复制view_lotus_cpu.sh更新view_lotus.sh文件
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "script/view_lotus_cpu.sh"
+        mode: 0750
+      when: downloadScriptFile == true and useGPU == false
+
+    - name: 重启lotus
+      shell: "~/bin/view_lotus.sh restart"
+      when: masterRestart == true
+
+- hosts: "slave"
+  gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  - slaveRestart: true
+  - posterRestart: true
+  - downloadScriptFile: false
+  - useGPU: true
+  tasks:
+    - name: 复制lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.tar"
+        dest: "~/bin/lotus.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: downloadBinMode == "true"
+      
+    - name: 复制view_lotus_gpu_super_saveMem.sh更新view_lotus.sh文件
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "script/view_lotus_gpu_super_saveMem.sh"
+        mode: 0750
+      when: downloadScriptFile == true and useGPU == true
+
+    - name: 复制view_lotus_cpu.sh更新view_lotus.sh文件
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "script/view_lotus_cpu.sh"
+        mode: 0750
+      when: downloadScriptFile == true and useGPU == false
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf lotus.tar; chmod 750 lotus-*"
+      when: downloadBinMode == "true"
+
+    - name: 先重启lotus poster
+      shell: "~/bin/view_lotus.sh poster"
+      when: posterRestart == true
+
+    - name: 再重启lotus slave
+      shell: "~/bin/view_lotus.sh slave"
+      when: slaveRestart == true
+

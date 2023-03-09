@@ -1,0 +1,42 @@
+---
+- hosts: all
+  remote_user: "{{minerUser}}"
+  become_user: "{{minerUser}}"
+  vars:
+    randomStr: "{{ lookup('password', '/dev/null length=60 chars=ascii_letters') }}"
+  tasks:
+    #- name: 在tank2新建.lotusslave_2文件夹
+    #  shell: cd /tank2/;mkdir .lotusslave;chmod 777 .lotusslave_2
+    #   ignore_errors: True
+    #  when: createTanlk is default and createTanlk==true
+
+    - name: 在storage添加path
+      shell: sed -i '/StoragePaths/a\    {\n     "Path"':' "/tank{{tank_num}}/.lotusslave_2"\n    },'  /home/{{minerUser}}/.lotusslave/storage.json
+      ignore_errors: True
+
+    - name: 拷贝文件到tank2
+      shell: cd /home/{{minerUser}}/.lotusslave && cp storage.json  sectorstore.json  /tank{{tank_num}}/.lotusslave_2/
+
+    - name: 修改old_CanSeal_CanStore
+      shell: sed -i 's/true/false/'  /home/{{minerUser}}/.lotusslave/sectorstore.json
+      ignore_errors: True
+
+    - name: 修改new_CanSeal
+      shell: sed -i 's/  "ID".*/  "ID"':' "{{ randomStr }}",'/g  /tank{{tank_num}}/.lotusslave_2/sectorstore.json
+      ignore_errors: True
+
+    - name: 修改new_CanStore
+      shell: sed -i  's/  "Weight"':'.*/  "Weight"':' 20',/g   /tank{{tank_num}}/.lotusslave_2/sectorstore.json
+      ignore_errors: True
+
+#    - name: 复制createLinkFolder
+#      copy:
+#        force: true
+#        dest: "~/{{ minerUser }}"
+#        src: "script/createLinkFolder.sh"
+#        mode: 0750
+#        owner: "{{ minerUser }}"
+#
+#    - name: 创建软链
+#      shell: ~/{{ minerUser }}/createLinkFolder.sh  {{minerID}}
+#      ignore_errors: True

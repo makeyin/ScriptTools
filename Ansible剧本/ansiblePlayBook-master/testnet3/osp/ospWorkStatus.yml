@@ -1,0 +1,35 @@
+---
+- hosts: "worker"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  vars:
+  tasks:
+    - name: testnet1
+      shell: ~/bin/osp-worker info |grep -w "Commit2" |awk '{print $2$3$4}'
+      register: worker1
+      when: minerUser == "testnet"
+
+    - name: testnet2
+      shell: bin/osp-worker info |grep -w "Commit2" |awk -F "Queues:" '{print $2}'|sed 's/)//g'
+      register: worker2
+      when: minerUser == "testnet"
+
+    - name: devnet1
+      shell: ~/bin/osp-worker info |grep -w "Commit2" |awk '{print $2$3$4}'
+      register: worker3
+      when: minerUser == "devnet"
+
+    - name: devnet2
+      shell: bin/osp-worker info |grep -w "Commit2" |awk -F "Queues:" '{print $2}'|sed 's/)//g'
+      register: worker4
+      when: minerUser == "devnet"
+
+    - name: "结果"
+      shell: "echo '##' IP:{{ inventory_hostname }}   用户:{{ minerUser }} '' worker:{{ worker1.stdout }}   Queues:{{ worker2.stdout }}    '##' >>{{ minerUser }}_commit2"
+      connection: local
+      when: minerUser == "testnet"
+
+    - name: "结果"
+      shell: "echo '##' IP:{{ inventory_hostname }}   用户:{{ minerUser }}  ' '   worker:{{ worker3.stdout }}   Queues:{{ worker4.stdout }}    '##' >>{{ minerUser }}_commit2"
+      connection: local
+      when: minerUser == "devnet"

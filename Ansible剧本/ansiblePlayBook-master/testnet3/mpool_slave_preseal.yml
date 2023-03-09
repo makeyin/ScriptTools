@@ -1,0 +1,265 @@
+#### 该剧本只用来搭建矿池的slave，并且是bin分离的版本
+#### 运行命令：cd /home/ansible/ansiblePlayBook/lotus/testnet3/jenkins;
+####          ansible-playbook ../mpool_slave_preseal.yml -i ../host/host_preseal -e @mpoolConf_preseal.yml -f 50
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+  - downloadBinMode: true
+  tasks:
+    - name: 删除lotus.tar
+      file:
+        path: /tmp/lotus.tar
+        state: absent
+
+    - name: "下载bin文件"
+      get_url:
+        url: "{{ slaveBinUrl }}"
+        dest: "/tmp/lotus.tar"
+      when: downloadBinMode is defined and downloadBinMode== true
+
+- hosts: slave
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  - isPrivateNet: false
+  - downloadBinMode: true
+  - initNewNodeMode: true
+  - killDaemonMode: true
+  - slaveAPIPort: 3450
+  - slaveListenPort: 8470
+  - posterAPIPort: 4560
+  - posterListenPort: 9470
+  - slaveAddPieceLimit: 2
+  - slavePreCommit1Limit: 14
+  - slavePreCommit2Limit: 1 
+  - slaveCommit1Limit: 2
+  - slaveCommit2Limit: 1
+  - slaveImportSectorLimit: 1
+  - slaveTryMaxNum: 60
+  - slaveTryInterval: 10
+  - slaveOutsource: false
+  - slaveToken: "tianru"
+  - slaveProviders: []
+  tasks:
+    - name: 建bin目录
+      file:
+        force: true
+        path: "~/bin"
+        state: directory
+
+    - name: 建log目录
+      file:
+        force: true
+        path: "~/log"
+        state: directory
+
+    - name: 复制view_lotus.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "script/view_lotus.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 复制filGuard.sh
+      copy:
+        force: true
+        dest: "~/bin/filGuard.sh"
+        src: "script/filGuard.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+  
+    - name: 关闭原先运行的程序
+      ignore_errors: True
+      shell: "~/bin/view_lotus.sh stopall"
+      when: initNewNodeMode == true or killDaemonMode == true
+
+    - name: 强制清理环境
+      ignore_errors: True
+      shell: ~/bin/view_lotus.sh cleanEnv
+      when: initNewNodeMode == true
+
+    - name: 删除旧的bin文件
+      shell: ~/bin/view_lotus.sh cleanBin
+      when: downloadBinMode == true
+
+    - name: 验证bin文件是否存在
+      shell: chmod 775 ~/bin/lotus-slave-miner
+      ignore_errors: True
+      register: hasInstall
+
+    - name: 复lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.tar"
+        dest: "~/bin/lotus.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: (hasInstall is failed) or (downloadBinMode == true)
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf lotus.tar; chmod 750 lotus-slave-miner; rm -f lotus lotus-storage-miner"
+      when: (hasInstall is failed) or (downloadBinMode == true)
+
+    - name: 检查bin文件是否存在
+      shell: chmod 775 ~/bin/lotus-slave-miner
+      ignore_errors: True
+      register: hasInstall
+
+    - fail: msg="DEPLOY ERROR!!! INSTALL FAILED： quite installPB because lotus file is missing"
+      when: hasInstall is failed
+
+    - name: 验证lotus是否运行
+      ignore_errors: True
+      shell: ~/bin/lotus-slave-miner net id
+      register: hasRunning
+
+    - name: debug hasRunning
+      debug:
+        msg: "{{hasRunning}}"
+
+    - name: slave节点init poster
+      shell: export LIBP2P_BOOTSTRAP_PEERS={{ master }}; export RELATION_GROUP_NAME={{ miner }};~/bin/lotus-poster init
+      when: initNewNodeMode == true
+
+    - name: slave节点init slave
+      shell: export LIBP2P_BOOTSTRAP_PEERS={{ master }}; export RELATION_GROUP_NAME={{ miner }};~/bin/lotus-slave-miner init
+      when: initNewNodeMode == true
+
+    - name: 设置slave的APIPort
+      shell: sed -i "/ListenAddress/ s|3456|{{ slaveAPIPort }}|" ~/.lotusslave/config.toml
+
+    - name: 设置slave的ListenPort
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  ListenPort.*$'
+        line: '  ListenPort = {{ slaveListenPort }}'
+
+    - name: 设置AddPieceCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "AddPieceLimit".*$'
+        line: '    "AddPieceLimit": {{ slaveAddPieceLimit }},'
+
+    - name: 设置PreCommit1Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "PreCommit1Limit".*$'
+        line: '    "PreCommit1Limit": {{ slavePreCommit1Limit }},'
+
+    - name: 设置PreCommit2Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "PreCommit2Limit".*$'
+        line: '    "PreCommit2Limit": {{ slavePreCommit2Limit }},'
+
+    - name: 设置Commit1Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "Commit1Limit".*$'
+        line: '    "Commit1Limit": {{ slaveCommit1Limit }},'
+
+    - name: 设置Commit2Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "Commit2Limit".*$'
+        line: '    "Commit2Limit": {{ slaveCommit2Limit }},'
+
+    - name: 设置ImportSectorLimit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "ImportSectorLimit".*$'
+        line: '    "ImportSectorLimit": {{ slaveImportSectorLimit }}'
+
+    - name: 更新slave的连接osp的开关
+      shell: sed -i '/[Outsource]/{n;0,/  Enable.*/s/  Enable.*/  Enable = true/;}' .lotusslave/config.toml
+      when: slaveOutsource is defined and slaveOutsource == true
+
+    - name: 更新slave的连接osp的开关
+      shell: sed -i '/[Outsource]/{n;0,/  Enable.*/s/  Enable.*/  Enable = false/;}' .lotusslave/config.toml
+      when: slaveOutsource is defined and slaveOutsource == false
+
+    - name: 更新slave的连接osp的slaveToken
+      lineinfile:
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: 'Token'
+        line: '  Token = "{{ slaveToken }}"'
+      when: slaveOutsource == true
+
+    - name: 更新slave的连接osp的slaveProviders
+      lineinfile:
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: 'Providers'
+        line: '  Providers = {{ slaveProviders }}'
+      when: slaveOutsource == true
+
+    - name: 更新slave的连接osp的slaveProviders去掉u
+      shell: sed -i "s/\[u'/\['/g" .lotusslave/config.toml;sed -i "s/,u'/,'/g" .lotusslave/config.toml;sed -i "s/, u'/,'/g" .lotusslave/config.toml
+      when: slaveOutsource == true
+
+    - name: 设置poster的APIPort
+      shell: sed -i "/ListenAddress/ s|4567|{{ posterAPIPort }}|" ~/.lotusposter/config.toml
+
+    - name: 更新poster的ListenPort
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: '  ListenPort.*$'
+        line: '  ListenPort = {{ posterListenPort }}'
+
+    - name: 先启动poster节点
+      shell: "~/bin/view_lotus.sh poster"
+
+    - name: 等待lotus-poster节点启动完成
+      shell: ~/bin/lotus-poster net id
+      ignore_errors: True
+      register: hasPosterRunning
+      until: "'API not running' not in hasPosterRunning.stderr"
+      retries: "{{slaveTryMaxNum}}"
+      delay: "{{slaveTryInterval}}"
+
+    - name: 再启动slave节点
+      shell: "~/bin/view_lotus.sh slave"
+
+    - name: 等待lotus-slave-miner节点启动完成
+      shell: ~/bin/lotus-slave-miner net id
+      ignore_errors: True
+      register: hasSlaveRunning
+      until: "'API not running' not in hasSlaveRunning.stderr"
+      retries: "{{slaveTryMaxNum}}"
+      delay: "{{slaveTryInterval}}"
+
+    - name: 记录slave的peerID
+      shell: ~/bin/lotus-slave-miner net id
+      register: slaveNetID
+
+    - name: 记录poster的peerID
+      shell: ~/bin/lotus-poster net id
+      register: posterNetID
+
+    # - name: check log
+    #   debug:
+    #     msg: "{{netID.stdout}}"
+
+    - name: 生成PeerID结果文件到中控机
+      shell: echo {{ inventory_hostname }}  {{ slaveNetID.stdout }}  {{ posterNetID.stdout }}>> slave_PeerID.txt
+      connection: local

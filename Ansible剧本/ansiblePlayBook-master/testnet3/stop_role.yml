@@ -1,0 +1,18 @@
+- hosts: all
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 停止slave
+      shell: kill -9 `ps -u $USER -f |grep "slave" |grep -v grep  |awk '{print $2}'`
+      ignore_errors: True
+      when: cleanName=="slave"
+
+    - name:  停止poster
+      shell: kill -9 `ps -u $USER -f |grep "poster" |grep -v grep  |awk '{print $2}'`
+      ignore_errors: True
+      when: cleanName=="poster"
+
+    - name:  停止整个slave
+      shell: ~/bin/view_lotus.sh  stopall
+      ignore_errors: True
+      when: cleanName=="all"

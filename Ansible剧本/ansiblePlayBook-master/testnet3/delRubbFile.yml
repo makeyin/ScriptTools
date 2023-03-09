@@ -1,0 +1,77 @@
+- hosts: all
+  remote_user: "{{mineruser}}"
+  strategy: free
+  tasks:
+   - name: 删除脚本
+     ignore_errors: True
+     shell: rm -rf ~/delRubbFile.sh
+
+   - name: 复制.sh
+     copy:
+        force: true
+        dest: "~/delRubbFile.sh"
+        src: "/home/ansible/ansiblePlayBook/lotus/testnet3/script/delRubbFile.sh"
+        mode: 0750
+        owner: "{{mineruser}}"
+
+   - name: 查看tank1大小
+     ignore_errors: True
+     shell: df -h | awk '{if($6~"tank1") print $5}' | awk -F "%" '{print $1}'
+     register: tank1_size
+
+   - name: 查看tank2大小
+     ignore_errors: True
+     shell: df -h | awk '{if($6~"tank2") print $5}' | awk -F "%" '{print $1}'
+     register: tank2_size
+
+   - name: 验证slave是否运行
+     ignore_errors: True
+     shell: ps -u $USER -f | grep slave | grep -v grep | grep -v view_lotus.sh| awk '{print $2}' | wc -l
+     register: check_slave
+
+   - name: check_slave
+     debug:
+        msg: "{{check_slave.stdout}}"
+
+   - name: 清理空间
+     ignore_errors: True
+     shell: ~/delRubbFile.sh  delPreCF
+     when: check_slave.stdout > 0  and tank2_size.stdout >= 60 or tank1_size.stdout >= 60
+
+   - name: 再次查看tank1大小
+     ignore_errors: True
+     shell: df -h | awk '{if($6~"tank1") print $5}' | awk -F "%" '{print $1}'
+     register: tank1_s_size
+     when: mineruser=="devnet"
+
+   - name: 再次查看tank2大小
+     ignore_errors: True
+     shell: df -h | awk '{if($6~"tank2") print $5}' | awk -F "%" '{print $1}'
+     register: tank2_s_size
+     when: mineruser=="testnet"
+
+   - name: tank_size
+     debug:
+        msg: "{{tank2_s_size}}"
+
+   - name: 更改AddPiece
+     ignore_errors: True
+     lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "AddPieceLimit":.*$'
+        line: '    "AddPieceLimit": 0,'
+     #shell: sed -i 's/"AddPieceLimit".*/"AddPieceLimit"':' 0,/g' ~/.lotusslave/storage.json
+     when: mineruser=="testnet" and  tank2_s_size.stdout >= "95"
+
+   - name: 更改AddPiece
+     ignore_errors: True
+     lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "AddPieceLimit":.*$'
+        line: '    "AddPieceLimit": 0,'
+     #shell: sed -i 's/"AddPieceLimit".*/"AddPieceLimit"':' 0,/g' ~/.lotusslave/storage.json
+     when: mineruser=="devnet"  and  tank1_s_size.stdout >= "95"

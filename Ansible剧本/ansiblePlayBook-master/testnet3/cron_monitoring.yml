@@ -1,0 +1,23 @@
+---
+- hosts: "{{miner_hosts}}"
+  become_user: "{{ minerUser }}"
+  remote_user: "{{ minerUser }}"
+  gather_facts: no
+  strategy: free
+  tasks:
+    - name: executive_command
+      shell: crontab -r
+      when: deleteAllCrontab is defined and deleteAllCrontab==true
+
+    - name: copy_Script
+      copy: src=/home/ansible/ansiblePlayBook/lotus/testnet3/script/monitoring_slave.sh dest=/home/{{minerUser}}/bin/ mode=0755 owner={{minerUser}} force=true
+      when: copyScript is defined and copyScript==true
+
+    - name:  executive_command
+      shell: /home/{{minerUser}}/bin/monitoring_slave.sh
+      register: result
+      when: executiveCommand is defined and executiveCommand==true
+
+    - name: 添加 lotus-slave1 定时任务
+      cron: minute=*/30 hour=* day=* month=* weekday=* name='slaveStatus'  job='/home/{{minerUser}}/bin/monitoring_slave.sh'
+      when: addSlaveCron is defined and addSlaveCron==true

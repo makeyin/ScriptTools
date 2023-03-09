@@ -1,0 +1,277 @@
+#### 该剧本只用来搭建矿池的slave，并且是bin分离的版本
+#### 运行命令：ansible-playbook mpool_slave.yml  -i mpool_host  -e @mpoolConf.yml
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: 删除lotus.tar
+      file:
+        path: /tmp/lotus.tar
+        state: absent
+
+    - name: "下载bin文件"
+      get_url:
+        url: "{{ slaveBinUrl }}"
+        dest: "/tmp/lotus.tar"
+      when: downloadBinMode is defined and downloadBinMode=="true"
+
+- hosts: slave
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  - slaveListenPort: 8000
+  - posterListenPort: 9000
+  - slaveAddPieceCount: 1
+  - slavePreCommitCount: 1
+  - slaveCommittingCount: 2
+  - slaveImportSealedSectorCount: 1
+  - slaveTryMaxNum: 600
+  - slaveTryInterval: 10
+  - sectorSize: 34359738368
+  tasks:
+    - name: 建bin目录
+      file:
+        force: true
+        path: "~/bin"
+        state: directory
+    - name: 建log目录
+      file:
+        force: true
+        path: "~/log"
+        state: directory
+
+    - name: 复制view_lotus_gpu.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "script/view_lotus_gpu_super_saveMem.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+      when: slaveUseGpu == "true"
+
+    - name: 复制view_lotus.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "script/view_lotus.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+      when: slaveUseGpu == "false"
+
+    - name: 关闭原先运行的程序
+      ignore_errors: True
+      shell: "~/bin/view_lotus.sh stopall"
+      when: initNewNodeMode == "true" or killDaemonMode == "true"
+
+    - name: 强制清理环境
+      ignore_errors: True
+      shell: ~/bin/view_lotus.sh cleanEnv
+      when: initNewNodeMode == "true"
+
+    - name: 删除旧的bin文件
+      shell: ~/bin/view_lotus.sh cleanBin
+      when: downloadBinMode == "true"
+
+    - name: 验证bin文件是否存在
+      shell: chmod 775 ~/bin/lotus-slave-miner
+      ignore_errors: True
+      register: hasInstall
+
+    - name: 复lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.tar"
+        dest: "~/bin/lotus.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: (hasInstall is failed) or (downloadBinMode == "true")
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf lotus.tar; chmod 750 lotus-slave-miner; rm -f lotus lotus-storage-miner"
+      when: (hasInstall is failed) or (downloadBinMode == "true")
+
+    - name: 检查bin文件是否存在
+      shell: chmod 775 ~/bin/lotus-slave-miner
+      ignore_errors: True
+      register: hasInstall
+
+    - fail: msg="DEPLOY ERROR!!! INSTALL FAILED： quite installPB because lotus file is missing"
+      when: hasInstall is failed
+
+    - name: 验证lotus是否运行
+      ignore_errors: True
+      shell: ~/bin/lotus-slave-miner net id
+      register: hasRunning
+
+    - name: debug hasRunning
+      debug:
+        msg: "{{hasRunning}}"
+
+    - name: slave节点init slave
+      shell: ~/bin/lotus-slave-miner init
+      when: initNewNodeMode == "true"
+
+    - name: slave节点init poster
+      shell: ~/bin/lotus-poster init
+      when: initNewNodeMode == "true"
+
+    - name: 设置Relation GroupName
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  GroupName.*$'
+        line: '  GroupName = "{{ GroupName }}"'
+
+    - name: 设置ListenPort
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  ListenPort.*$'
+        line: '  ListenPort = {{ slaveListenPort }}'
+
+    - name: 设置AddPieceCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  AddPieceCount.*$'
+        line: '   AddPieceCount = {{ slaveAddPieceCount }}'
+
+    - name: 设置PreCommitCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  PreCommitCount.*$'
+        line: '   PreCommitCount = {{ slavePreCommitCount }}'
+
+    - name: 设置CommittingCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  CommittingCount.*$'
+        line: '   CommittingCount = {{ slaveCommittingCount }}'
+
+    - name: 设置ImportSealedSectorCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  ImportSealedSectorCount.*$'
+        line: '   ImportSealedSectorCount = {{ slaveImportSealedSectorCount }}'
+
+    - name: 读取masterID.txt
+      shell: "cat masterID.txt"
+      register: master
+      connection: local
+      when: masterID == ""
+
+    - name: 更新slave的masterid
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: 'BootstrapPeers'
+        #line: '  BootstrapPeers = ["/dns4/guideslave.valuechain.group/tcp/18000/p2p/12D3KooWSJqnP7U3MSooK5VmKUDNcZ25xRh3HLUvQFjmAmMBBgKA","{{ master.stdout }}"]'
+        line: '  BootstrapPeers = ["{{ master.stdout }}"]'
+      when: masterID == ""
+
+    - name: 更新slave的masterid
+      lineinfile:
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: 'BootstrapPeers'
+        #line: '  BootstrapPeers = ["/dns4/guideslave.valuechain.group/tcp/18000/p2p/12D3KooWSJqnP7U3MSooK5VmKUDNcZ25xRh3HLUvQFjmAmMBBgKA","{{ masterID }}"]'
+        line: '  BootstrapPeers = ["{{ masterID }}"]'
+      when: masterID != ""
+
+    - name: 设置slave的DefaultSectorSize
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  DefaultSectorSize.*$'
+        line: '  DefaultSectorSize = {{ sectorSize }}'
+
+    - name: 设置poster的DefaultSectorSize
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: '  DefaultSectorSize.*$'
+        line: '  DefaultSectorSize = {{ sectorSize }}'
+
+    - name: 更新poster的Relation GroupName
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: '  GroupName.*$'
+        line: '  GroupName = "{{ GroupName }}"'
+
+    - name: 更新poster的ListenPort
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: '  ListenPort.*$'
+        line: '  ListenPort = {{ posterListenPort }}'
+
+    - name: 更新poster的masterid
+      lineinfile:
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: 'BootstrapPeers'
+        #line: '  BootstrapPeers = ["/dns4/guideslave.valuechain.group/tcp/18000/p2p/12D3KooWSJqnP7U3MSooK5VmKUDNcZ25xRh3HLUvQFjmAmMBBgKA","{{ masterID }}"]'
+        line: '  BootstrapPeers = ["{{ masterID }}"]'
+      when: masterID != ""
+
+    - name: 先启动poster节点
+      shell: "~/bin/view_lotus.sh poster"
+
+    - name: 等待lotus-poster节点启动完成
+      shell: ~/bin/lotus-poster net id
+      ignore_errors: True
+      register: hasPosterRunning
+      until: "'API not running' not in hasPosterRunning.stderr"
+      retries: "{{slaveTryMaxNum}}"
+      delay: "{{slaveTryInterval}}"
+
+    - name: 再启动slave节点
+      shell: "~/bin/view_lotus.sh slave"
+
+    - name: 等待lotus-slave-miner节点启动完成
+      shell: ~/bin/lotus-slave-miner net id
+      ignore_errors: True
+      register: hasSlaveRunning
+      until: "'API not running' not in hasSlaveRunning.stderr"
+      retries: "{{slaveTryMaxNum}}"
+      delay: "{{slaveTryInterval}}"
+
+    # - name: 获取slave的net-id
+    #   shell: "~/bin/lotus-slave-miner net id"
+    #   register: slaveID
+
+    # - name: 更新poster的SealWorker
+    #   lineinfile:
+    #     dest: "~/.lotusposter/config.toml"
+    #     state: "present"
+    #     regexp: 'SealWorker'
+    #     line: '  SealWorker = "{{ slaveID.stdout }}"'
+    #   when: slaveID != ""
+
+    # - name: 获取poster的net-id
+    #   shell: "~/bin/lotus-poster net id"
+    #   register: posterID
+
+    # - name: 更新lotus-slave-miner的PostWorker
+    #   lineinfile:
+    #     dest: "~/.lotusslave/config.toml"
+    #     state: "present"
+    #     regexp: 'PostWorker'
+    #     line: '  PostWorker = "{{ posterID.stdout }}"'
+    #   when: posterID != ""

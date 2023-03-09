@@ -1,0 +1,27 @@
+#### ansible-playbook copyParamFile.yml -i cz_host -e "hosts=all minerUser=devnet"
+- hosts: "{{ hosts }}"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 复制v20.tar
+      copy:
+        force: true
+        dest: "/var/tmp/filecoin-proof-parameters/v20.tar"
+        src: "/var/tmp/filecoin-proof-parameters/v20.tar"
+        mode: 0775
+        group: filecoin
+
+    - name: chmod
+      shell: cd /var/tmp/filecoin-proof-parameters; tar xvf vk.tar
+
+    - name: 复制32G.tar
+      copy:
+        force: true
+        dest: "/var/tmp/filecoin-proof-parameters/v20-32G.tar"
+        src: "/var/tmp/filecoin-proof-parameters/v20-32G.tar"
+        mode: 0775
+        group: filecoin
+
+    - name: chmod
+      shell: cd /var/tmp/filecoin-proof-parameters; tar xvf v20-32G.tar

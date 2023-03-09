@@ -1,0 +1,144 @@
+---
+- hosts: master
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 设置AddPieceCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  AddPieceCount.*$'
+        line: '  AddPieceCount = {{ masterAddPieceCount }}'
+      when: masterAddPieceCount is defined
+
+    - name: 设置SleepForSyncSeconds
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  SleepForSyncSeconds.*$'
+        line: '  SleepForSyncSeconds = {{ masterSleepForSyncSeconds }}'
+      when: masterSleepForSyncSeconds is defined
+
+    - name: 设置PushBlockDelaySeconds
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  PushBlockDelaySeconds.*$'
+        line: '  PushBlockDelaySeconds = {{ masterPushBlockDelaySeconds }}'
+      when: masterPushBlockDelaySeconds is defined
+
+    - name: 设置VanillaTimeout
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  VanillaTimeout.*$'
+        line: '  VanillaTimeout = {{ masterVanillaTimeout }}'
+      when: masterVanillaTimeout is defined
+
+    - name: 设置PreCommitCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  PreCommitCount.*$'
+        line: '  PreCommitCount = {{ masterPreCommitCount }}'
+      when: masterPreCommitCount is defined
+
+    - name: 设置CommittingCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  CommittingCount.*$'
+        line: '  CommittingCount = {{ masterCommittingCount }}'
+      when: masterCommittingCount is defined
+
+    - name: 设置ImportSealedSectorCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  ImportSealedSectorCount.*$'
+        line: '  ImportSealedSectorCount = {{ masterImportSealedSectorCount }}'
+      when: masterImportSealedSectorCount is defined
+
+    - name: 开启SendDealTickBlocks
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  SendDealTickBlocks.*$'
+        line: '  SendDealTickBlocks = {{ SendDealTickBlocks }}'
+      when: SendDealTickBlocks is defined
+
+    - name: 开启SendPowerTickBlocks --master
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  SendPowerTickBlocks.*$'
+        line: '  SendPowerTickBlocks = {{ SendPowerTickBlocks }}'
+      when: SendPowerTickBlocks is defined
+
+    - name: 开启LimitWaitWorkCount --master
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  LimitWaitWorkCount.*$'
+        line: '  LimitWaitWorkCount = {{ LimitWaitWorkCount }}'
+      when: LimitWaitWorkCount is defined
+
+    - name: 开启MaxWaitWorkCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  MaxWaitWorkCount.*$'
+        line: '  MaxWaitWorkCount = {{ MaxWaitWorkCount }}'
+      when: MaxWaitWorkCount is defined
+
+    - name: 启动slave节点
+      shell: "~/bin/view_lotus.sh slave"
+      when: masterRestart is defined and masterRestart == true
+
+- hosts: slave
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 设置AddPieceCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  AddPieceCount.*$'
+        line: '  AddPieceCount = {{ slaveAddPieceCount }}'
+      when: slaveAddPieceCount is defined
+
+    - name: 设置PreCommitCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  PreCommitCount.*$'
+        line: '  PreCommitCount = {{ slavePreCommitCount }}'
+      when: slavePreCommitCount is defined
+
+    - name: 设置CommittingCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  CommittingCount.*$'
+        line: '  CommittingCount = {{ slaveCommittingCount }}'
+      when: slaveCommittingCount is defined
+
+    - name: 启动slave节点
+      shell: "~/bin/view_lotus.sh slave"
+      when: slaveRestart is defined and slaveRestart == true

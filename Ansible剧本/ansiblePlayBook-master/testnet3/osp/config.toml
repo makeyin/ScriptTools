@@ -1,0 +1,22 @@
+# Default config:
+GenesisTimestamp = 0
+
+[API]
+  ListenAddress = "/ip4/127.0.0.1/tcp/5432/http"
+  Timeout = "30s"
+
+[Libp2p]
+  ListenPort = 8200
+  BootstrapPeers = ["/ip4/192.168.1.74/tcp/8100/p2p/12D3KooWJskD6F3mNMFLVpkzAtQMJVedoidtHgmrr1n1aH9y4vJh","/ip4/192.168.1.72/tcp/8100/p2p/12D3KooWFVFk8U8KFmSviqT7wBgK7MXxdRHT38B5Ff59L8fDiKwv","/ip4/192.168.1.70/tcp/8100/p2p/12D3KooWEt7LJqYFbS3ZEson1vLUEwec8ZQZ2aZ5XFoGagCuHmHN"]
+  ProtectedPeers = []
+  ConnMgrLow = 150
+  ConnMgrHigh = 180
+  ConnMgrGrace = "20s"
+
+[Relation]
+  GroupName = "osp"
+
+[Storage]
+  AllowPreCommit1 = false
+  AllowPreCommit2 = false
+  AllowCommit = true

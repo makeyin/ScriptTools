@@ -1,0 +1,95 @@
+### ansible-playbook repBin.yml -i seal_hosts -e "@baseDeployConf.yml"
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: 删除lotus.tar
+      file:
+        path: /tmp/osp.tar
+        state: absent
+
+    - name: 下载bin文件
+      get_url:
+        url: "{{ ospBinUrl }}"
+        dest: "/tmp/osp.tar"
+
+- hosts: "provider"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  tasks:
+    - name: 复制view_lotus_gpu.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "../script/view_osp.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 复制osp文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/osp.tar"
+        dest: "~/bin/osp.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf osp.tar"
+
+    - name: 重启provider
+      shell: "~/bin/view_lotus.sh op"
+      when: providerRestart==true
+
+- hosts: "worker"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  tasks:
+    - name: 复制view_lotus_gpu.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "../script/view_osp.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 复制lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/osp.tar"
+        dest: "~/bin/osp.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf osp.tar"
+
+    - name: 重启worker
+      shell: "~/bin/view_lotus.sh ow"
+      when: workerRestart==true
+
+- hosts: "windowpost"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  tasks:
+    - name: 复制lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/osp.tar"
+        dest: "~/bin/osp.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+
+    - name: 解压tar
+      ignore_errors: True
+      shell: "cd ~/bin; tar xvf osp.tar"
+
+    - name: 重启worker
+      ignore_errors: True
+      shell: "~/bin/view_lotus.sh startwindow"
+      when: windowRestart==true

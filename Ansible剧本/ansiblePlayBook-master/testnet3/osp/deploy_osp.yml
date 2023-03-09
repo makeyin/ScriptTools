@@ -1,0 +1,600 @@
+#### ansible-playbook deploy_osp.yml -i osp_host -e "@ospConf.yml"
+---
+  - hosts: localhost
+    gather_facts: no
+    tasks:
+      - name: 删除lotus.tar
+        file:
+          path: /tmp/osp.tar
+          state: absent
+
+      - name: 下载bin文件
+        get_url:
+          url: "{{ ospBinUrl }}"
+          dest: "/tmp/osp.tar"
+
+
+      - name: 删除oss-window文件
+        ignore_errors: True
+        shell: rm -rf  ./ospwindow.out
+        when: minerUser == "devnet"
+
+  - hosts: provider
+    strategy: free
+    remote_user: "{{ minerUser }}"
+    become_user: "{{ minerUser }}"
+    vars:
+      IP: "{{ ansible_default_ipv4['address'] }}"
+    tasks:
+      - name: 创建bin目录
+        file:
+          force: true
+          path: "~/bin"
+          state: directory
+
+      - name: 建log目录
+        file:
+          force: true
+          path: "~/log"
+          state: directory
+
+      - name: 复制view_lotus.sh
+        copy:
+          force: true
+          dest: "~/bin/view_lotus.sh"
+          src: "../script/view_osp.sh"
+          mode: 0750
+          owner: "{{ minerUser }}"
+
+      - name: 复制osp_guard
+        copy:
+          force: true
+          dest: "~/bin/ospGuard.sh"
+          src: "../script/ospGuard.sh"
+          mode: 0750
+          owner: "{{ minerUser }}"
+
+      - name: 关闭原先运行的osp程序
+        ignore_errors: True
+        shell: "~/bin/view_lotus.sh stopallosp"
+
+      - name: 强制清理环境
+        ignore_errors: True
+        shell: "~/bin/view_lotus.sh cleanProvider"
+
+      - name: 复制osp到节点bin目录
+        copy:
+          force: true
+          src: "/tmp/osp.tar"
+          dest: "~/bin/osp.tar"
+          mode: 0775
+          owner: "{{ minerUser }}"
+
+      - name: 解压tar
+        shell: "cd ~/bin; tar xvf osp.tar;chmod 750 osp-provider; chmod 750 osp-worker"
+
+      - name: 启动provider
+        shell: ~/bin/view_lotus.sh op
+
+      - name: "获取consul_addr"
+        shell: cat jenkins/consul_addr
+        register: addr
+        connection: local
+
+      - name: addr的返回
+        debug:
+          msg: "{{ addr.stdout }}"
+
+      - name: 更改consul地址
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospprovider/config.toml"
+          state: "present"
+          regexp: '  SerfLanAddrs.*$'
+          line: '  SerfLanAddrs = [{{ addr.stdout }}]'
+
+      - name: 设置GroupName
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospprovider/config.toml"
+          state: "present"
+          regexp: '  GroupName.*$'
+          line: '  GroupName = "{{ GroupName }}"'
+
+      - name: 设置kafka-groupName
+        lineinfile:
+          backrefs: yes
+          dest: "~/bin/view_lotus.sh"
+          state: "present"
+          regexp: '  export RELATION_GROUP_NAME=group_name'
+          line: '  export RELATION_GROUP_NAME={{ GroupName }}'
+
+      - name: 设置kafka-customeName
+        lineinfile:
+          backrefs: yes
+          dest: "~/bin/view_lotus.sh"
+          state: "present"
+          regexp: '  export CUSTOMER_NAME=customer_name'
+          line: '  export CUSTOMER_NAME={{ customer_name }}-{{ minerUser }}'
+
+
+      - name: 设置RevertTaskTime
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospprovider/config.toml"
+          state: "present"
+          regexp: 'RevertTaskTime.*$'
+          line: 'RevertTaskTime = "{{ RevertTaskTime }}"'
+
+      - name: 重启provider
+        shell: ~/bin/view_lotus.sh op
+
+      - name: "复制注册脚本"
+        copy:
+          force: true
+          src: "script/consul.sh"
+          dest: "/tmp/consul.sh"
+          mode: 0775
+
+      - name: 更改配置文件的端口
+        lineinfile:
+          backrefs: yes
+          dest: "/tmp/consul.sh"
+          state: "present"
+          regexp: 'port1=.*$'
+          line: 'port1=19421'
+
+      - name: 更改配置文件的注册地址
+        lineinfile:
+          backrefs: yes
+          dest: "/tmp/consul.sh"
+          state: "present"
+          regexp: 'regUrl=http://117.173.15.160:8500/v1/agent/service/register'
+          line: 'regUrl={{ regUrl }}'
+
+      - name: 更改配置文件的注册名称
+        lineinfile:
+          backrefs: yes
+          dest: "/tmp/consul.sh"
+          state: "present"
+          regexp: 'regName=prometheus-node-my'
+          line: 'regName={{ GroupName }}'
+
+      - name: 更改IP
+        lineinfile:
+          backrefs: yes
+          dest: "/tmp/consul.sh"
+          state: "present"
+          regexp: 'app_ip=192.169.1.1'
+          line: 'app_ip={{ IP }}'
+
+      - name: 执行注册
+        shell: "/tmp/consul.sh"
+
+  - hosts: localhost
+    gather_facts: no
+    tasks:
+      - name: 删除旧的providerid.txt文件
+        file:
+          force: true
+          path: provideId1.txt
+          state: absent
+
+  - hosts: provider
+    gather_facts: no
+    remote_user: "{{ minerUser }}"
+    become_user: "{{ minerUser }}"
+    tasks:
+      - name: 获取provider-id
+        shell: "~/bin/osp-provider net listen"
+        register: providerid
+
+      - name: debug:providerid
+        debug:
+          msg: "{{ providerid.stdout }}"
+
+      - name: 保存providerid文件到中控机
+        shell: "echo {{ providerid.stdout }} >>provideId1.txt"
+        connection: local
+
+
+  - hosts: worker
+    strategy: free
+    remote_user: "{{ minerUser }}"
+    become_user: "{{ minerUser }}"
+    vars:
+      IP: "{{ ansible_default_ipv4['address'] }}"
+    tasks:
+      - name: 创建bin目录
+        file:
+          force: true
+          path: "~/bin"
+          state: directory
+
+      - name: 建log目录
+        file:
+          force: true
+          path: "~/log"
+          state: directory
+
+      - name: 复制view_lotus.sh
+        copy:
+          force: true
+          dest: "~/bin/view_lotus.sh"
+          src: "../script/view_osp.sh"
+          mode: 0750
+          owner: "{{ minerUser }}"
+
+      - name: 复制osp_guard
+        copy:
+          force: true
+          dest: "~/bin/ospGuard.sh"
+          src: "../script/ospGuard.sh"
+          mode: 0750
+          owner: "{{ minerUser }}"
+
+
+      - name: 格式化
+        shell: cat provideId1.txt|sed 's/$/"/'|sed 's/^/"/'|awk '{printf"%s,",$0}'|sed 's/.$//' > provideId2.txt
+        connection: local
+
+      - name: 关闭原先运行的程序
+        ignore_errors: True
+        shell: "~/bin/view_lotus.sh stopWorker"
+
+      - name: 强制清理���境
+        ignore_errors: True
+        shell: "~/bin/view_lotus.sh cleanWorker"
+
+      - name: 复制osp到节点bin目录
+        copy:
+          force: true
+          src: "/tmp/osp.tar"
+          dest: "~/bin/osp.tar"
+          mode: 0775
+          owner: "{{ minerUser }}"
+
+      - name: 解压tar
+        shell: "cd ~/bin; tar xvf osp.tar;chmod 750 osp-provider; chmod 750 osp-worker"
+
+      - name: initworker
+        shell: ~/bin/view_lotus.sh initWorker
+
+      - name: 更改api-testnet
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: '  ListenAddress = "/ip4/127.0.0.1/tcp/5432/http"'
+          line: '  ListenAddress = "/ip4/127.0.0.1/tcp/5433/http"'
+        when: minerUser == "testnet"
+
+      - name: 更改ListenPort-testnet
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: '  ListenPort = 8200'
+          line: '  ListenPort = 8201'
+        when: minerUser == "testnet"
+
+      - name: 更改api-filecoin
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: '  ListenAddress = "/ip4/127.0.0.1/tcp/5432/http"'
+          line: '  ListenAddress = "/ip4/127.0.0.1/tcp/5434/http"'
+        when: minerUser == "filecoin"
+
+      - name: 更改ListenPort-filecoin
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: '  ListenPort = 8200'
+          line: '  ListenPort = 8202'
+        when: minerUser == "filecoin"
+
+      - name: 更改api-mainnet
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: '  ListenAddress = "/ip4/127.0.0.1/tcp/5432/http"'
+          line: '  ListenAddress = "/ip4/127.0.0.1/tcp/5435/http"'
+        when: minerUser == "mainnet"
+
+      - name: 更改ListenPort-mainnet
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: '  ListenPort = 8200'
+          line: '  ListenPort = 8203'
+        when: minerUser == "mainnet"
+
+      - name: 更改PrometheusEndpoint-testnet
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: ' PrometheusEndpoint = "/ip4/0.0.0.0/tcp/19422"'
+          line: '  PrometheusEndpoint = "/ip4/0.0.0.0/tcp/19522"'
+        when: minerUser == "testnet"
+
+      - name: 更改PrometheusEndpoint-filecoin
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: '  PrometheusEndpoint = "/ip4/0.0.0.0/tcp/19422"'
+          line: '  PrometheusEndpoint = "/ip4/0.0.0.0/tcp/19622"'
+        when: minerUser == "filecoin"
+
+      - name: 更改PrometheusEndpoint-mainnet
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: '  PrometheusEndpoint = "/ip4/0.0.0.0/tcp/19422"'
+          line: '  PrometheusEndpoint = "/ip4/0.0.0.0/tcp/19722"'
+        when: minerUser == "mainnet"
+
+      - name: 设置GroupName
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: '  GroupName.*$'
+          line: '  GroupName = "{{ GroupName }}"'
+
+      - name: 设置MaxWorkingCount
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: 'MaxWorkingCount.*$'
+          line: 'MaxWorkingCount = {{ MaxWorkingCount }}'
+
+      - name: 读取provideID
+        shell: "cat provideId2.txt"
+        register: provideId2
+        connection: local
+        when: addWorker ==""
+
+      - name: 设置provideId
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: '  BootstrapPeers.*$'
+          line: '  BootstrapPeers = [{{ provideId2.stdout }}]'
+        when: addWorker ==""
+
+      - name: 读取provideID
+        shell: "cat jenkins/provider_id"
+        register: provider_id
+        connection: local
+        when: addWorker==true
+
+
+      - name: 设置provideId
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/config.toml"
+          state: "present"
+          regexp: '  BootstrapPeers.*$'
+          line: '  BootstrapPeers = [{{ provider_id.stdout }}]'
+        when: addWorker==true
+
+      - name: 设置commit2
+        lineinfile:
+          backrefs: yes
+          dest: "~/.ospworker/storage.json"
+          state: "present"
+          regexp: '    "Commit2Limit".*$'
+          line: '    "Commit2Limit": {{ Commit2Limit }},'
+
+      - name: 设置kafka-groupName
+        lineinfile:
+          backrefs: yes
+          dest: "~/bin/view_lotus.sh"
+          state: "present"
+          regexp: '  export RELATION_GROUP_NAME=group_name'
+          line: '  export RELATION_GROUP_NAME={{ GroupName }}'
+
+      - name: 设置kafka-customeName
+        lineinfile:
+          backrefs: yes
+          dest: "~/bin/view_lotus.sh"
+          state: "present"
+          regexp: '  export CUSTOMER_NAME=customer_name'
+          line: '  export CUSTOMER_NAME={{ customer_name }}-{{ minerUser }}'
+
+
+      - name: 启动worker
+        shell: ~/bin/view_lotus.sh ow
+
+      - name: "复制注册脚本"
+        copy:
+          force: true
+          src: "script/consul.sh"
+          dest: "~/bin/consul.sh"
+          mode: 0775
+
+      - name: 更改配置文件的端口
+        lineinfile:
+          backrefs: yes
+          dest: "~/bin/consul.sh"
+          state: "present"
+          regexp: 'port1=.*$'
+          line: 'port1=19422'
+        when: minerUser == "devnet"
+
+      - name: 更改配置文件的端口
+        lineinfile:
+          backrefs: yes
+          dest: "~/bin/consul.sh"
+          state: "present"
+          regexp: 'port1=.*$'
+          line: 'port1=19522'
+        when: minerUser == "testnet"
+
+      - name: 更改配置文件的端口
+        lineinfile:
+          backrefs: yes
+          dest: "~/bin/consul.sh"
+          state: "present"
+          regexp: 'port1=.*$'
+          line: 'port1=19622'
+        when: minerUser == "filecoin"
+
+      - name: 更改配置文件的端口
+        lineinfile:
+          backrefs: yes
+          dest: "~/bin/consul.sh"
+          state: "present"
+          regexp: 'port1=.*$'
+          line: 'port1=19722'
+        when: minerUser == "mainnet"
+
+      - name: 更改配置文件的注册地址
+        lineinfile:
+          backrefs: yes
+          dest: "~/bin/consul.sh"
+          state: "present"
+          regexp: 'regUrl=http://117.173.15.160:8500/v1/agent/service/register'
+          line: 'regUrl={{ regUrl }}'
+
+      - name: 更改配置文件的注册名称
+        lineinfile:
+          backrefs: yes
+          dest: "~/bin/consul.sh"
+          state: "present"
+          regexp: 'regName=prometheus-node-my'
+          line: 'regName={{ GroupName }}'
+
+      - name: 更改IP
+        lineinfile:
+          backrefs: yes
+          dest: "~/bin/consul.sh"
+          state: "present"
+          regexp: 'app_ip=192.169.1.1'
+          line: 'app_ip={{ IP }}'
+
+      - name: 执行注册
+        shell: "~/bin/consul.sh"
+
+  - hosts: windowpost
+    remote_user: "{{ minerUser }}"
+    vars:
+      collect_info: "{{ansible_default_ipv4['address']}}"
+    tasks:
+      - name: IP的返回
+        debug:
+          msg: "{{ collect_info }}"
+
+  - hosts: windowpost
+    gather_facts: no
+    remote_user: "{{ minerUser }}"
+    vars:
+      collect_info: "{{ansible_default_ipv4['address']}}"
+    become_user: "{{ minerUser }}"
+    tasks:
+      - name: 创建bin目录
+        file:
+          force: true
+          path: "~/bin"
+          state: directory
+
+      - name: 建log目录
+        file:
+          force: true
+          path: "~/log"
+          state: directory
+
+      - name: 复制view_lotus.sh
+        copy:
+          force: true
+          dest: "~/bin/view_lotus.sh"
+          src: "/home/ansible/ansiblePlayBook/lotus/mainnet/script/view_lotus.sh"
+          mode: 0750
+          owner: "{{ minerUser }}"
+
+      - name: 复制osp_guard
+        copy:
+          force: true
+          dest: "~/bin/ospGuard.sh"
+          src: "../script/ospGuard.sh"
+          mode: 0750
+          owner: "{{ minerUser }}"
+
+      - name: 关闭原先运行的osp程序
+        ignore_errors: True
+        shell: "~/bin/view_lotus.sh stopallosp"
+
+      - name: 强制清理环境
+        ignore_errors: True
+        shell: "~/bin/view_lotus.sh cleanwindow"
+
+      - name: 复制osp到节点bin目录
+        copy:
+          force: true
+          src: "/tmp/osp.tar"
+          dest: "~/bin/osp.tar"
+          mode: 0775
+          owner: "{{ minerUser }}"
+
+      - name: 解压tar
+        shell: "cd ~/bin; tar xvf osp.tar;chmod 750 osp-window;"
+
+      - name: 启动windowpost
+        shell: ~/bin/view_lotus.sh wp
+
+      - name: 设置GroupName
+        lineinfile:
+          backrefs: yes
+          dest: "~/.wdsnarker/config.toml"
+          state: "present"
+          regexp: '  GroupName.*$'
+          line: '  GroupName = "{{ GroupName }}"'
+
+      - name: 更新slave的masterid
+        lineinfile:
+          dest: "~/.wdsnarker/config.toml"
+          state: "present"
+          regexp: 'BootstrapPeers'
+          line: '  BootstrapPeers = ["{{ masterID }}"]'
+        when: masterID != ""
+
+      - name: 设置window的APIPort
+        shell: sed -i "/ListenAddress/ s|127.0.0.1|{{ collect_info }}|" ~/.wdsnarker/config.toml
+
+      - name: 设置window的APIPort
+        shell: sed -i "/ListenAddress/ s|4321|{{ windowAPIPort }}|" ~/.wdsnarker/config.toml
+
+      - name: 设置slave的ListenPort
+        lineinfile:
+          backrefs: yes
+          dest: "~/.wdsnarker/config.toml"
+          state: "present"
+          regexp: '  ListenPort.*$'
+          line: '  ListenPort = {{ windowListenPort }}'
+
+      - name: 重启window
+        shell: ~/bin/view_lotus.sh wp
+
+      - name: 获取window的peerID
+        shell: ~/bin/osp-window net id
+        register: windowNetID
+
+      - name: debug:windowNetID
+        debug:
+          msg: "{{ windowNetID }}"
+
+      - name: 生成windowPeerId到中控机
+        shell: echo "{{ windowNetID.stdout }}",  >> ospwindow.out
+        connection: local
+
+

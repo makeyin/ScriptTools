@@ -1,0 +1,85 @@
+# ansible-playbook geneNodePB.yml -i genesis_host -e @baseDeployConf.yml
+---  
+- hosts: all
+  gather_facts: no
+  #strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 复制view_lotus.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "../script/view_lotus.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 复制deployGenesis.sh
+      copy:
+        force: true
+        dest: "~/bin/deployGenesis.sh"
+        src: "deployGenesis.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: "删除旧的bin文件和文件夹"
+      ignore_errors: True
+      remote_user: "{{ minerUser }}"
+      become_user: "{{ minerUser }}"
+      shell: "~/bin/view_lotus.sh stopall; ~/bin/view_lotus.sh cleanEnv; rm -rf ~/bin/lotus_private.tar"
+
+    - name: "下载tar文件"
+      get_url:
+        url: "{{ downloadGenesisBinUrl }}"
+        dest: "~/bin/lotus_private.tar"
+
+    - name: "解压tar"
+      shell: "cd ~/bin; tar xvf lotus_private.tar; chmod +x lotus* fountain"
+
+    - name: 执行deployGenesis.sh脚本
+      remote_user: "{{ minerUser }}"
+      become_user: "{{ minerUser }}"
+      shell: "~/bin/deployGenesis.sh"
+
+    - name: 获取peer ID
+      shell: ~/bin/lotus net listen | grep -v ip6 | grep "{{ inventory_hostname }}"
+      register: Peer_ID
+
+    - name: 更新Peer_ID
+      lineinfile:
+        backrefs: yes
+        dest: "./officialNodePB.yml"
+        state: "present"
+        regexp: '^  - genesisPeerID:'
+        line: '  - genesisPeerID: "{{Peer_ID.stdout}}"'
+      connection: local
+
+    - name: 更新tapUrl
+      lineinfile:
+        backrefs: yes
+        dest: "./officialNodePB.yml"
+        state: "present"
+        regexp: '^  - tapUrl:'
+        line: '  - tapUrl: "http://{{ inventory_hostname }}:9292"'
+      connection: local
+
+    - name: 更新downloadGenesisFileUrl
+      lineinfile:
+        backrefs: yes
+        dest: "./officialNodePB.yml"
+        state: "present"
+        regexp: '^  - downloadGenesisFileUrl:'
+        line: '  - downloadGenesisFileUrl: "http://{{ inventory_hostname }}:8989/devnet.car"'
+      connection: local
+
+    - name: 打印创世节点connect信息
+      debug:
+        msg: "创世节点connect信息为  {{Peer_ID.stdout}}"
+
+    - name: 打印genesis file下载地址
+      debug:
+        msg: "下载devnet.car地址为  http://{{ inventory_hostname }}:8989/devnet.car"
+
+    - name: 打印水龙头地址
+      debug:
+        msg: "水龙头地址为  http://{{ inventory_hostname }}:9292"

@@ -1,0 +1,5 @@
+---
+minerUser: 'devnet'
+ospBinUrl: 'http://file.valuechain.group/master-v24-0407.testnet.osp.tar?OSSAccessKeyId=LTAI4Fn4zCozDjaJL3eJ6Vja&Expires=1589163856&Signature=Hu1YuD1xXElyuBYJe3wzkr8Lf%2B0%3D'
+GroupName: 'osp'
+Commit2Limit: 2

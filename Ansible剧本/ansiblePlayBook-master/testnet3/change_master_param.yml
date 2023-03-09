@@ -1,0 +1,146 @@
+- hosts: all
+  remote_user: inituser
+  become: yes
+  become_user: root
+  strategy: free
+  vars:
+  - IsUnixSleep: "true"
+  - UnixSleep: 10
+  - UnixVanillaTimeout: 34
+  - SleepForSyncSeconds: "8s"
+  - PublishClockDrift: "-19s"
+  - PubsubPrivateDelay: "19s"
+  #- FlexibleSleepTime: "8s"
+  - BetterBase: "false"
+  #- MbiTimeout: 20
+  #- VanillaTimeout: 32
+  #- BeSnarkTimeout: 26
+  #- AllowableClockDrift: "3s"
+  #- CfgForkHeight: 57381000
+  #- IgnoreBlockWithBlackMsg: "true"
+  tasks:
+    - name: 设置IsUnixSleep
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  IsUnixSleep.*$'
+        line: '  IsUnixSleep = {{ IsUnixSleep }}'
+      when: IsUnixSleep is defined
+
+    - name: 设置UnixSleep
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  UnixSleep.*$'
+        line: '  UnixSleep = {{ UnixSleep }}'
+      when: UnixSleep is defined
+
+    - name: 设置SleepForSyncSeconds
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  SleepForSyncSeconds.*$'
+        line: '  SleepForSyncSeconds = "{{ SleepForSyncSeconds }}"'
+      when: SleepForSyncSeconds is defined
+
+    - name: 设置PublishClockDrift
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  PublishClockDrift.*$'
+        line: '  PublishClockDrift = "{{ PublishClockDrift }}"'
+      when: PublishClockDrift is defined
+
+    - name: 设置PubsubPrivateDelay
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  PubsubPrivateDelay.*$'
+        line: '  PubsubPrivateDelay = "{{ PubsubPrivateDelay }}"'
+      when: PubsubPrivateDelay is defined
+
+    - name: 设置FlexibleSleepTime
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  FlexibleSleepTime.*$'
+        line: '  FlexibleSleepTime = "{{ FlexibleSleepTime }}"'
+      when: FlexibleSleepTime is defined
+
+    - name: 设置VanillaTimeout
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  VanillaTimeout.*$'
+        line: '  VanillaTimeout = {{ VanillaTimeout }}'
+      when: VanillaTimeout is defined
+
+    - name: 设置VanillaTimeout
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  UnixVanillaTimeout.*$'
+        line: '  UnixVanillaTimeout = {{ UnixVanillaTimeout }}'
+      when: UnixVanillaTimeout is defined
+
+    - name: 设置MbiTimeout
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  MbiTimeout.*$'
+        line: '  MbiTimeout = {{ MbiTimeout }}'
+      when: MbiTimeout is defined
+
+    - name: 设置BetterBase
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  BetterBase.*$'
+        line: '  BetterBase = {{ BetterBase }}'
+      when: BetterBase is defined
+
+    - name: 设置BeSnarkTimeout
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  BeSnarkTimeout.*$'
+        line: '  BeSnarkTimeout = {{ BeSnarkTimeout }}'
+      when: BeSnarkTimeout is defined
+
+    - name: 设置AllowableClockDrift
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotus/config.toml"
+        state: "present"
+        regexp: '  AllowableClockDrift.*$'
+        line: '  AllowableClockDrift = "{{ AllowableClockDrift }}"'
+      when: AllowableClockDrift is defined
+
+    - name: 设置CfgForkHeight
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotus/config.toml"
+        state: "present"
+        regexp: '  CfgForkHeight.*$'
+        line: '  CfgForkHeight = {{ CfgForkHeight }}'
+      when: CfgForkHeight is defined
+
+    - name: 设置IgnoreBlockWithBlackMsg
+      lineinfile:
+        backrefs: yes
+        dest: "/home/devnet/.lotus/config.toml"
+        state: "present"
+        regexp: '  IgnoreBlockWithBlackMsg.*$'
+        line: '  IgnoreBlockWithBlackMsg = {{ IgnoreBlockWithBlackMsg }}'
+      when: IgnoreBlockWithBlackMsg is defined

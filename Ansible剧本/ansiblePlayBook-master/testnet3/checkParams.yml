@@ -1,0 +1,42 @@
+- hosts: all
+  remote_user: "filecoin"
+  tasks:
+  - name : 验证64Gtree_d文件是否存在
+    shell: ls -al /var/tmp/filecoin-proof-parameters/tree_d_68719476736/sc-02-data-tree-d.dat |grep 137438953440
+    ignore_errors: True
+
+  - name : 验证64Gtree_d文件权限
+    shell: ls -al /var/tmp/filecoin-proof-parameters/tree_d_68719476736/sc-02-data-tree-d.dat |grep "rwxrwxrwx"
+    ignore_errors: True
+
+
+  - name : 验证64G_parents文件是否存在
+    shell : ls -al /var/tmp/filecoin-parents/v28-sdr-parent-4905486b7af19558ac3649bc6261411858b6add534438878c4ee3b29d8b9de0b.cache | grep 120259084288
+    ignore_errors: True
+
+  - name : 验证64G_parents文件权限
+    shell : ls -al /var/tmp/filecoin-parents/v28-sdr-parent-4905486b7af19558ac3649bc6261411858b6add534438878c4ee3b29d8b9de0b.cache |grep "rwxrwxrwx"
+    ignore_errors: True
+
+  - name : 验证32Gtree_d文件是否存在
+    shell : ls -al /var/tmp/filecoin-proof-parameters/tree_d_34359738368/sc-02-data-tree-d.dat | grep 68719476704
+    ignore_errors: True
+
+  - name : 验证32Gtree_d文件权限
+    shell : ls -al /var/tmp/filecoin-proof-parameters/tree_d_34359738368/sc-02-data-tree-d.dat |grep "rwxrwxrwx"
+    ignore_errors: True
+
+
+  - name : 验证32G_parents文件是否存在
+    shell : ls -al /var/tmp/filecoin-parents/v28-sdr-parent-21981246c370f9d76c7a77ab273d94bde0ceb4e938292334960bce05585dc117.cache | grep 60129542144
+    ignore_errors: True
+
+  - name : 验证32G_parents文件权限
+    shell : ls -al /var/tmp/filecoin-parents/v28-sdr-parent-21981246c370f9d76c7a77ab273d94bde0ceb4e938292334960bce05585dc117.cache |grep "rwxrwxrwx"
+    ignore_errors: True
+
+
+
+
+
+

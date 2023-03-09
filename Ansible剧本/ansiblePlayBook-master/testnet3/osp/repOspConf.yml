@@ -1,0 +1,25 @@
+### ansible-playbook repBin.yml -i seal_hosts -e "@baseDeployConf.yml"
+---
+- hosts: "worker"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 复制view_lotus_gpu.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "../script/view_lotus.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 设置commit2
+      lineinfile:
+        backrefs: yes
+        dest: "~/.ospworker/storage.json"
+        state: "present"
+        regexp: '    "Commit2Limit".*$'
+        line: '    "Commit2Limit": {{ Commit2Limit }},'
+
+    - name: 重启worker
+      shell: "~/bin/view_lotus.sh worker"

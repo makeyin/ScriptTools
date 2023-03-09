@@ -1,0 +1,231 @@
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: 删除lotus.genesis.tar文件  
+      file:
+        path: /tmp/lotus.genesis.tar
+        state: absent
+
+    - name: 删除lotus.tar
+      file:
+        path: /tmp/lotus.tar
+        state: absent
+
+    - name: 下载Genesis文件
+      get_url:
+        url: "{{ downloadGenesisFileUrl }}"
+        dest: "/tmp/lotus.genesis.tar"
+      when: downloadBinMode is defined and downloadBinMode=="true"
+
+    #- name: "下载bin文件"
+    #  shell: chmod 750 ./script/downLoadBin.sh;./script/downLoadBin.sh '{{downloadBinUrl}}'
+    #  when: downloadBinMode is defined and downloadBinMode=="true"
+
+    - name: "下载bin文件"
+      get_url:
+        url: "{{ downloadBinUrl }}"
+        dest: "/tmp/lotus.tar"
+      when: downloadBinMode is defined and downloadBinMode=="true"
+
+    - name: 清空转账的walletAddress.txt
+      shell: rm -f walletAddress.txt; touch walletAddress.txt
+
+- hosts: "{{miner_hosts}}:!genesis"
+  gather_facts: no
+  #strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 创建bin目录
+      file:
+        force: true
+        path: "~/bin"
+        state: directory
+
+    - name: 复制view_lotus.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "script/view_lotus.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 关闭原先运行的程序
+      ignore_errors: True
+      shell: "~/bin/view_lotus.sh stopall"
+      when: initNewNodeMode == "true" or killDaemonMode == "true"
+
+    - name: 强制清理环境
+      ignore_errors: True
+      shell: ~/bin/view_lotus.sh cleanEnv
+      when: initNewNodeMode == "true"
+
+    - name: 删除旧的bin文件
+      shell: ~/bin/view_lotus.sh cleanBin
+      when: downloadBinMode == "true"
+
+    - name: 验证bin文件是否存在
+      shell: "chmod 775 ~/bin/lotus"
+      ignore_errors: True
+      register: hasInstall
+
+    - name: 复制lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.tar"
+        dest: "~/bin/lotus.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: (hasInstall is failed) or (downloadBinMode == "true")
+
+    - name: 复制devnet.car文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.genesis.tar"
+        dest: "~/bin/lotus.genesis.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: (hasInstall is failed) or (downloadBinMode == "true")
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf lotus.tar;tar xvf lotus.genesis.tar;chmod 750 lotus; chmod 750 lotus-storage-miner"
+      when: (hasInstall is failed) or (downloadBinMode == "true")
+
+    - name: 检查bin文件是否存在
+      shell: chmod 775 ~/bin/lotus
+      ignore_errors: True
+      register: hasInstall
+
+    - fail: msg="DEPLOY ERROR!!! INSTALL FAILED： quite installPB because lotus file is missing"
+      when: hasInstall is failed
+
+    - name: 验证lotus是否运行
+      ignore_errors: True
+      shell: ~/bin/lotus net id
+      register: hasRunning
+
+    - name: 验证lotus storage是否运行
+      ignore_errors: True
+      shell: ~/bin/lotus-storage-miner net id
+      register: hasStorageRunning
+
+    - name: debug hasRunning
+      debug:
+        msg: "{{hasRunning}}"
+
+    - name: 启动lotus daemon
+      ignore_errors: True
+      shell: setsid ~/bin/lotus daemon --genesis=/home/$USER/bin/devnet.car  > ~/log/lotus.`date +"%m%d%H%M"`.out 2>&1 &
+      when: "'API not running' in hasRunning.stderr"
+
+    - name: 等待节点启动
+      shell: ~/bin/lotus net id
+      ignore_errors: True
+      register: hasRunning
+      until: "'API not running' not in hasRunning.stderr"
+      retries: "{{startNodeTryMaxNum}}"
+      delay: "{{startNodeTryInterval}}"
+      when: "'API not running' in hasRunning.stderr"
+
+    - name: Private Net swarm connect genesisPeerID
+      shell: ~/bin/lotus net connect {{ genesisPeerID }}
+      when: isPrivateNet == "true"
+
+    - name: Private Net swarm connect genesisStoragePeerID
+      shell: ~/bin/lotus net connect {{ genesisStoragePeerID }}
+      when: isPrivateNet == "true"
+
+    - meta: end_play
+      when: hasStorageRunning.stderr == ''"
+
+    - name: 获取钱包地址
+      shell: ~/bin/lotus wallet list
+      register: walletID
+
+    #- fail: msg="DEPLOY ERROR!!! INSTALL FAILED： quite installPB because bin file is missing"
+    #  when: walletID is failed
+
+    - name: debug walletID
+      debug:
+        msg: "{{walletID}}"
+
+    - name: 如果没有钱包地址，生成钱包地址
+      shell: ~/bin/lotus wallet new bls
+      register: walletID
+      when: walletID.stdout == ''
+
+    - name: 查看钱包余额
+      shell: ~/bin/lotus wallet balance {{ walletID.stdout }}
+      register: walletBalance
+
+    - name: debug walletBalance
+      debug:
+        msg: "{{walletBalance}}"
+
+    - name: 保存需要genesis节点转账的walletAddress
+      shell: echo {{ walletID.stdout }} >> walletAddress.txt
+      connection: local
+      when: walletBalance.stdout == "0"
+
+- hosts: genesis
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 读取walletAddress.txt
+      shell: cat walletAddress.txt
+      register: toAddress
+      connection: local
+
+    - name: 获取转账的source wallet address
+      shell: ~/bin/lotus wallet default
+      register: sourceAddress
+      when: toAddress.stdout != ""
+
+    - name: 转账
+      shell: ~/bin/lotus send --source {{sourceAddress.stdout}} {{toAddress.stdout}} 300; sleep 10;
+      when: toAddress.stdout != ""
+
+- hosts: "{{miner_hosts}}:!genesis"
+  gather_facts: no
+  #strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 查看钱包余额
+      shell: ~/bin/view_lotus.sh wallet
+      register: walletBalance
+
+    - name: 查看钱包余额
+      debug:
+        msg: "{{walletBalance}}"
+
+    - name: 查看walletID
+      debug:
+        msg: "{{walletID}}"
+
+    - name: 等待钱包获取余额
+      shell: ~/bin/view_lotus.sh wallet
+      ignore_errors: True
+      register: walletBalance
+      until: walletBalance.stdout != "0"
+      retries: "{{createMinerTryMaxNum}}"
+      delay: "{{createMinerTryInterval}}"
+
+    - name: 初始化storage miner
+      shell: ~/bin/lotus-storage-miner init --sector-size={{ sectorSize }} --owner={{ walletID.stdout }}
+      when: "'API not running' in hasStorageRunning.stderr"
+
+    - name: 启动storage节点
+      shell: ~/bin/view_lotus.sh mining
+      when: "'API not running' in hasStorageRunning.stderr"
+
+    - name: 等待storage节点启动完成
+      shell: ~/bin/lotus-storage-miner net id
+      ignore_errors: True
+      register: hasStorageRunning
+      until: "'API not running' not in hasStorageRunning.stderr"
+      retries: "{{createMinerTryMaxNum}}"
+      delay: "{{createMinerTryInterval}}"
+      when: "'API not running' in hasStorageRunning.stderr"
