@@ -1,0 +1,34 @@
+- hosts: "genesis_node"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 结束docker进程
+      command: "/usr/local/bin/docker-compose -f  /home/devnet/jenkins_build_devnet/start.yml down"
+      ignore_errors: True
+      register: result
+
+    - name: 创建清空区块文件标记
+      file: path=/home/devnet/jenkins_build_devnet/lotus/bin/tmp/{{ item }} state=touch mode=600
+      with_items:
+        - emptydata
+
+    - name: "获取远程机器IP写入到文件准备调用"
+      shell: "echo {{ inventory_hostname }} > /home/devnet/jenkins_build_devnet/lotus/bin/tmp/local-ip"
+
+    - name: "下载进制文件"
+      get_url:
+        url: "{{ downloadGenesisBinUrl }}"
+        dest: /home/devnet/jenkins_build_devnet/lotus/bin/tmp/master-tianru.tar
+        force: true
+      validate_certs: no
+
+    - name: 解压二进制文件到tmp文件
+      raw: tar xf /home/devnet/jenkins_build_devnet/lotus/bin/tmp/master-tianru.tar -C /home/devnet/jenkins_build_devnet/lotus/bin/tmp/
+
+    - name: 解压二进制文件到启动文件
+      raw: tar xf /home/devnet/jenkins_build_devnet/lotus/bin/tmp/master-tianru.tar -C /home/devnet/jenkins_build_devnet/lotus/bin/
+
+    - name: 启动docker进程
+      command: " /usr/local/bin/docker-compose -f  /home/devnet/jenkins_build_devnet/start.yml up -d"
+      register: result

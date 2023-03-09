@@ -1,0 +1,274 @@
+---
+- hosts: master
+  strategy: free
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  - masterRestart: false
+  tasks:
+    - name: 设置AddPieceCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "AddPieceLimit".*$'
+        line: '    "AddPieceLimit": {{ masterAddPieceLimit }},'
+      when: masterAddPieceLimit is defined
+
+    - name: 设置SleepForSyncSeconds
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  SleepForSyncSeconds.*$'
+        line: '  SleepForSyncSeconds = "{{ masterSleepForSyncSeconds }}"'
+      when: masterSleepForSyncSeconds is defined
+
+    - name: 设置VanillaTimeout
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  VanillaTimeout.*$'
+        line: '  VanillaTimeout = {{ masterVanillaTimeout }}'
+      when: masterVanillaTimeout is defined
+
+    - name: 设置PreCommit1Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "PreCommit1Limit".*$'
+        line: '    "PreCommit1Limit": {{ masterPreCommit1Limit }},'
+      when: masterPreCommit1Limit is defined
+
+    - name: 设置PreCommit2Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "PreCommit21Limit".*$'
+        line: '    "PreCommit21Limit": {{ masterPreCommit2Limit }},'
+      when: masterPreCommit2Limit is defined
+
+    - name: 设置Commit1Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "Commit1Limit".*$'
+        line: '    "Commit1Limit": {{ masterCommit1Limit }},'
+      when: masterCommit1Limit is defined
+
+    - name: 设置Commit2Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "Commit2Limit".*$'
+        line: '    "Commit2Limit": {{ masterCommit2Limit }},'
+      when: masterCommit2Limit is defined
+
+    - name: 设置ImportSealedSectorCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "ImportSectorLimit".*$'
+        line: '    "ImportSectorLimit": {{ masterImportSectorLimit }}'
+      when: masterImportSectorLimit is defined
+
+    - name: 开启SendDealTickBlocks
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  SendDealTickBlocks.*$'
+        line: '  SendDealTickBlocks = {{ SendDealTickBlocks }}'
+      when: SendDealTickBlocks is defined
+
+    - name: 开启SendPowerTickBlocks --master
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  SendPowerTickBlocks.*$'
+        line: '  SendPowerTickBlocks = {{ SendPowerTickBlocks }}'
+      when: SendPowerTickBlocks is defined
+
+    - name: 开启LimitWaitWorkCount --master
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  LimitWaitWorkCount.*$'
+        line: '  LimitWaitWorkCount = {{ LimitWaitWorkCount }}'
+      when: LimitWaitWorkCount is defined
+
+    - name: 开启MaxWaitWorkCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusstorage/config.toml"
+        state: "present"
+        regexp: '  MaxWaitWorkCount.*$'
+        line: '  MaxWaitWorkCount = {{ MaxWaitWorkCount }}'
+      when: MaxWaitWorkCount is defined
+
+    - name: 启动master节点
+      shell: "~/bin/view_lotus.sh slave"
+      when: masterRestart is defined and masterRestart == true
+
+- hosts: slave
+  gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  - slaveRestart: false
+  - posterRestart: false
+  tasks:
+    - name: 设置AddPieceCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "AddPieceLimit".*$'
+        line: '    "AddPieceLimit": {{ slaveAddPieceLimit }},'
+      when: slaveAddPieceLimit is defined
+
+    - name: 设置PreCommit1Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "PreCommit1Limit".*$'
+        line: '    "PreCommit1Limit": {{ slavePreCommit1Limit }},'
+      when: slavePreCommit1Limit is defined
+
+    - name: 设置PreCommit2Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "PreCommit2Limit".*$'
+        line: '    "PreCommit2Limit": {{ slavePreCommit2Limit }},'
+      when: slavePreCommit2Limit is defined
+
+    - name: 设置Commit1Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "Commit1Limit".*$'
+        line: '    "Commit1Limit": {{ slaveCommit1Limit }},'
+      when: slaveCommit1Limit is defined
+
+    - name: 设置Commit2Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "Commit2Limit".*$'
+        line: '    "Commit2Limit": {{ slaveCommit2Limit }},'
+      when: slaveCommit2Limit is defined
+
+    - name: 设置ImportSectorLimit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "ImportSectorLimit".*$'
+        line: '    "ImportSectorLimit": {{ slaveImportSectorLimit }}'
+      when: slaveImportSectorLimit is defined
+
+    - name: 设置CandidateLimit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: '  CandidateLimit.*$'
+        line: '  CandidateLimit = {{ slaveImportCandidateLimit }}'
+      when: slaveImportCandidateLimit is defined
+
+    - name: 更新slave的masterid
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: 'BootstrapPeers'
+        insertafter: '  ListenPort.*'
+        line: '  BootstrapPeers = ["{{ BootstrapPeers }}"]'
+      when: BootstrapPeers is defined
+
+    - name: 设置Relation GroupName
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  GroupName.*$'
+        line: '  GroupName = "{{ GroupName }}"'
+      when: GroupName is defined
+
+    - name: 更新poster的masterid
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: 'BootstrapPeers'
+        insertafter: '  ListenPort.*'
+        line: '  BootstrapPeers = ["{{ BootstrapPeers }}"]'
+      when: BootstrapPeers is defined
+
+    - name: 更新poster的Relation GroupName
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: '  GroupName.*$'
+        line: '  GroupName = "{{ GroupName }}"'
+      when: GroupName is defined
+
+#    - name: 更新slave的连接osp的开关
+#      lineinfile:
+#        dest: "~/.lotusslave/config.toml"
+#        state: "present"
+#        regexp: 'Enable'
+#        line: '  Enable = false'
+#      when: slaveOutsource is defined and slaveOutsource == false
+
+    - name: 更新slave的连接osp的开关
+      shell: sed -i '/[Outsource]/{n;0,/  Enable.*/s/  Enable.*/  Enable = true/;}' .lotusslave/config.toml
+      when: slaveOutsource is defined and slaveOutsource == true
+
+    - name: 更新slave的连接osp的开关
+      shell: sed -i '/[Outsource]/{n;0,/  Enable.*/s/  Enable.*/  Enable = false/;}' .lotusslave/config.toml
+      when: slaveOutsource is defined and slaveOutsource == false
+
+    - name: 更新slave的连接osp的slaveToken
+      lineinfile:
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: 'Token'
+        line: '  Token = "{{ slaveToken }}"'
+      when: slaveToken is defined
+
+    - name: 更新slave的连接osp的slaveProviders
+      lineinfile:
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: 'Providers'
+        line: '  Providers = {{ slaveProviders }}'
+      when: slaveProviders is defined
+
+    - name: 更新slave的连接osp的slaveProviders去掉u
+      shell: sed -i "s/\[u'/\['/g" .lotusslave/config.toml;sed -i "s/,u'/,'/g" .lotusslave/config.toml;sed -i "s/, u'/,'/g" .lotusslave/config.toml
+      when: slaveProviders is defined
+
+    - name: 启动poster节点
+      shell: "~/bin/view_lotus.sh poster"
+      when: posterRestart is defined and posterRestart == true
+
+    - name: 启动slave节点
+      shell: "~/bin/view_lotus.sh slave"
+      when: slaveRestart is defined and slaveRestart == true

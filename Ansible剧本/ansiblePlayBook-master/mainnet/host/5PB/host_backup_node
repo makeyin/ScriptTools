@@ -1,0 +1,73 @@
+[Node1-filecoin]
+192.168.10.161 -master
+192.168.10.163 -slave for deal
+192.168.10.165 -slave for deal
+192.168.10.167 -slave for normal cc slave
+192.168.8.253 -slave for deal
+192.168.8.239 -slave for deal
+
+[Node2-filecoin]
+192.168.10.169 -master
+192.168.10.171 -slave for deal
+192.168.10.173 -slave for deal
+192.168.10.175 -slave for normal cc slave
+192.168.8.237 -slave for deal
+192.168.8.249 -slave for deal
+
+[Node3-filecoin]
+192.168.10.177 -master
+192.168.10.179 -slave for deal
+192.168.10.181 -slave for deal
+192.168.10.183 -slave for cc slave
+192.168.10.17 -slave for deal
+192.168.8.243 -slave for deal
+
+[self3.31 testnet]
+192.168.3.31 ---master devnet
+192.168.10.203 -slave for deal
+192.168.10.205 -slave for deal
+192.168.10.207 -slave for cc slave
+192.168.9.161 -slave for deal
+192.168.8.245 -slave for deal
+
+[矿池护法1-filecoin]
+192.168.10.185 -master
+192.168.10.187 -slave for deal
+192.168.10.189 -slave for deal
+192.168.10.191 -slave for cc slave
+192.168.8.247 -slave for deal
+192.168.8.235 -slave for deal
+
+[矿池护法2-filecoin]
+192.168.10.193 -master
+192.168.10.197 -slave for deal
+192.168.10.199 -slave for deal
+192.168.10.201 -slave for cc slave 
+192.168.9.239 -slave for deal
+192.168.8.251 -slave for deal
+
+[3.29的deal机器]
+192.168.2.3
+
+[麦客第二个节点 testnet]
+192.168.8.7(testnet mk二节点)
+192.168.8.221 -- slave for deal
+
+[备用机器]
+192.168.10.193 -filecoin 有问题
+
+
+192.168.2.79
+192.168.2.81
+192.168.2.85
+192.168.2.87
+192.168.2.89
+192.168.2.91
+192.168.2.93
+192.168.2.95
+192.168.2.97
+192.168.2.99
+
+[麦客wx83 deal机器testnet]
+192.168.8.3
+192.168.8.5

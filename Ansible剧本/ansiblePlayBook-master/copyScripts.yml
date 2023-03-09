@@ -1,0 +1,43 @@
+---
+### Usage: ansible-playbook copyScripts.yml -i mainNet/mainnet_hosts -e "minerUser=devnet miner_hosts=nmg"
+- hosts: "{{miner_hosts}}"
+  gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 创建bin目录
+      file:
+        force: true
+        path: "~/bin"
+        state: directory
+
+    - name: 创建log目录
+      file:
+        force: true
+        path: "~/log"
+        state: directory
+
+    # - name: 复制cpu_watcher.sh
+    #   copy:
+    #     force: true
+    #     dest: "~/bin/cpu_watcher.sh"
+    #     src: "../privateNet/script/cpu_watcher.sh"
+    #     mode: 0750
+
+    #- name: 启动cpu_watcher.sh
+    #  shell: "setsid ~/bin/cpu_watcher.sh > ~/log/cpu_watcher.out 2>&1  &"
+
+    - name: 复制view_lotus.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "./script/view_lotus.sh"
+        mode: 0750
+
+    - name: 复制lotusGuard.sh
+      copy:
+        force: true
+        dest: "~/bin/lotusGuard.sh"
+        src: "./script/lotusGuard.sh"
+        mode: 0750

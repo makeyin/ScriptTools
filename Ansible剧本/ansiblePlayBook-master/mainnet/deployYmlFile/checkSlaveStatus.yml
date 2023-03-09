@@ -1,0 +1,45 @@
+#### 查看slave状态
+#### ansible-playbook checkSlaveStatus.yml -i cz_host -e "minerUser=devnet"
+---
+- hosts: all
+  gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 创建bin目录
+      #shell: logfile=`ls -lt ~/log | awk '{print $NF}' | grep slave-miner | head -1`; grep "PreCommit完成 通知Master上链" ~/log/$logfile | awk -F':' '{print $1}' | uniq -c | tail -5
+      shell: logfile=`ls -lt ~/log | awk '{print $NF}' | grep slave-miner | head -1`;grep "updated state to Proving" ~/log/$logfile | awk '!Sector[$6]++{print}' | awk -F':' '{print $1}' | uniq -c |  tail -5
+      register: seal
+
+    - name: check log
+      debug:
+        msg: "{{seal.stdout_lines}}"
+
+    - name: 生成monitor结果文件到中控机
+      shell: echo {{ inventory_hostname }},{{ seal.stdout_lines }}"\n" >> ./slave_proving_status.txt
+      connection: local
+
+    - name: 检查slave进程是否存在
+      ignore_errors: True
+      shell: ps -u $USER -f | grep lotus-slave-miner | grep -v grep | grep -v view_lotus.sh
+      register: slave_proc
+
+    # - name: print
+    #   debug:
+    #     msg: "{{slave_proc}}"
+
+    - name: slave进程不存在的话写入文件
+      shell: echo "{{ inventory_hostname }}" >> ./slave_down.txt
+      when: slave_proc.failed==true
+      connection: local
+
+    - name: 检查poster进程是否存在
+      ignore_errors: True
+      shell: ps -u $USER -f  | grep lotus-poster | grep -v grep | grep -v view_lotus.sh
+      register: poster_proc
+
+    - name: poster进程不存在的话写入文件
+      shell: echo "{{ inventory_hostname }}" >> ./poster_down.txt
+      when: poster_proc.failed==true
+      connection: local

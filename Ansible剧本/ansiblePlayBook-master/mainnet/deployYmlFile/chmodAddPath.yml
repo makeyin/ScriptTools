@@ -1,0 +1,36 @@
+- hosts: all
+  gather_facts: no
+  remote_user: shiyi
+  become: yes
+  become_user: root
+  strategy: free
+  vars:
+  - chmodParams: false
+  - chmodTank3Tank4: false
+  - addNewTankDir: false
+  tasks:
+    - name: 更改params权限
+      #ignore_errors: True
+      shell: sudo chmod 777 /var/tmp/filecoin-proof-parameters;sudo chmod 777 /var/tmp/filecoin-proof-parameters/* -R
+      when: chmodParams == true
+
+    - name: 更改tank权限
+      shell: sudo chmod 777 /tank1 /tank2; sudo  chmod 777  /tank3 -R; sudo  chmod 777  /tank4 -R
+      #ignore_errors: True
+      when: chmodTank3Tank4 == true
+
+    - name: 添加tank路径
+      shell: sudo mkdir -m 777 -p /{{tank}}/.lotusslave_{{minerUser}}_{{GroupName}}
+      #ignore_errors: True
+      when: addNewTankDir == true
+
+- hosts: slave
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  strategy: free
+  vars:
+  - addNewTankToSlave: false
+  tasks:
+    - name: 添加第二个storage path
+      shell: ~/bin/lotus-slave-miner storage attach  --seal=true --store=true --init /{{tank}}/.lotusslave_{{minerUser}}_{{GroupName}}
+      when: addNewTankToSlave == true

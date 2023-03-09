@@ -1,0 +1,138 @@
+### 搭建矿池的testnet3 master的剧本
+### 命令:   ansible-playbook mpool_master.yml  -i mpool_host  -e @mpoolConf.yml
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+  - downloadBinMode: true
+  tasks:
+    - name: 删除lotus.tar
+      file:
+        path: /tmp/lotus.tar
+        state: absent
+
+    - name: "下载bin文件"
+      get_url:
+        url: "{{ masterBinUrl }}"
+        dest: "/tmp/lotus.tar"
+      when: downloadBinMode is defined and downloadBinMode==true
+
+    - name: 删除slave_PeerID
+      file:
+        path: /home/ansible/ansiblePlayBook/lotus/mainnet/deployYmlFile/walletID.txt
+        state: absent
+
+- hosts: master
+  strategy: free
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  - isPrivateNet: false
+  - downloadBinMode: true
+  - initNewNodeMode: true
+  - killDaemonMode: true
+  - startNodeTryMaxNum: 300
+  - startNodeTryInterval: 10
+  - createMinerTryMaxNum: 600
+  - createMinerTryInterval: 10
+  - masterAddPieceLimit: 2
+  - masterPreCommit1Limit: 2
+  - masterPreCommit2Limit: 2
+  - masterCommit1Limit: 2
+  - masterCommit2Limit: 2
+  - masterImportSectorLimit: 4
+  - masterSleepForSyncSeconds: "15s"
+  - masterPublishClockDrift: "900ms"
+  - masterFlexibleSleepTime: "5s"
+  - masterSleepForGetBaseTwice: "25s"
+  - masterVanillaTimeout: 10
+  - EnableSelfSeal: 'false'
+  - SendDealTickBlocks: 1
+  - SendPowerTickBlocks: 1
+  - LimitWaitWorkCount: 2
+  - MaxSealTotal: 400000
+  - MaxWaitWorkCount: 4
+  - sectorSize: 34359738368
+  tasks:
+    - name: 创建bin目录
+      file:
+        force: true
+        path: "~/bin"
+        state: directory
+
+    - name: 建log目录
+      file:
+        force: true
+        path: "~/log"
+        state: directory
+
+    - name: 关闭原先运行的程序
+      ignore_errors: True
+      shell: "~/bin/view_lotus.sh stopall"
+
+    - name: 强制清理环境
+      ignore_errors: True
+      shell: ~/bin/view_lotus.sh cleanEnv
+
+    - name: 删除旧的bin文件
+      shell: ~/bin/view_lotus.sh cleanBin
+
+    - name: 验证bin文件是否存在
+      shell: "chmod 775 ~/bin/lotus"
+      ignore_errors: True
+      register: hasInstall
+
+    - name: 复制lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.tar"
+        dest: "~/bin/lotus.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf lotus.tar;chmod 750 lotus; chmod 750 lotus-miner"
+
+    - name: 检查bin文件是否存在
+      shell: chmod 775 ~/bin/lotus
+      ignore_errors: True
+      register: hasInstall
+
+    - fail: msg="DEPLOY ERROR!!! INSTALL FAILED： quite installPB because lotus file is missing"
+      when: hasInstall is failed
+
+    - name: 启动lotus
+      ignore_errors: True
+      shell: ~/bin/view_lotus.sh start
+
+    - name: 等待节点启动
+      shell: ~/bin/lotus net id
+      ignore_errors: True
+      register: hasRunning
+
+    - name: 等待链同步
+      shell: ~/bin/lotus sync wait
+      ignore_errors: True
+      register: chaindone
+      until: "'Done!'  in chaindone.stdout"
+      retries: "{{startNodeTryMaxNum}}"
+      delay: "{{startNodeTryInterval}}"
+      when: "'Done!' not in chaindone.stdout"
+
+    - name: 如果没有钱包地址生成钱包地址
+      shell: ~/bin/lotus wallet new bls
+      register: walletID
+
+    - name: 如果没有钱包地址生成钱包地址
+      shell: ~/bin/lotus net listen | awk -F "/" '{print $3}'
+      register: host_ip
+
+    - name: 生成钱包地址
+      shell: echo {{host_ip.stdout}} {{ walletID.stdout }} >> walletID.txt
+      connection: local
+
+
+
+
+

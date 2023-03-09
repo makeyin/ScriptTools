@@ -1,0 +1,71 @@
+### 命令:   ansible-playbook mpool_master.yml  -i mpool_host  -e @mpoolConf.yml
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: 删除slave_PeerID
+      file:
+        path: /home/ansible/ansiblePlayBook/lotus/mainnet/deployYmlFile/miner.txt
+        state: absent
+
+- hosts: master
+  strategy: free
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  vars:
+    collect_info: "{{ansible_default_ipv4['address']}}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: trust_params
+      shell: export TRUST_PARAMS=1
+
+    - name: 初始化storage miner
+      shell: ~/bin/lotus-miner init --sector-size {{ sector_size }}
+      register: init
+
+    - name: init的返回
+      debug:
+        msg: "{{init}}.stdout"
+
+    - name: 拷贝peerID
+      shell: cp ~/NRUWE4BSOAWWQ33TOQ  ~/.lotusminer/keystore
+
+    - name: 配置groupName
+      shell: sed -i "s|GroupName.*|GroupName = `cat ~/groupName`|g"  ~/.lotusminer/config.toml
+
+    - name: 启动lotus-miner节点
+      shell: ~/bin/view_lotus.sh mining
+      register: haslotusRunning
+
+    - name: init的返回
+      debug:
+        msg: "{{haslotusRunning}}"
+
+    - name: 等待lotus节点启动完成
+      shell: ~/bin/lotus-miner net id
+      ignore_errors: True
+      register: haslotusRunning
+      until: "'API not running' not in haslotusRunning.stdout_lines"
+      retries: "{{createMinerTryMaxNum}}"
+      delay: "{{createMinerTryInterval}}"
+      when: "'API not running' in haslotusRunning.stdout_lines"
+
+    - name: 获取master的net-id
+      shell: "~/bin/lotus-miner net listen |grep ip4|grep -v 127.0.0.1|grep -v 192.168"
+      register: peerId
+
+    - name: peer的返回
+      debug:
+        msg: "{{peerId}}.stdout_lines"
+
+    - name: 获取master的miner-id
+      shell: "~/bin/lotus-miner info | grep Miner: | awk -F : '{print $2}'"
+      register: minerId
+
+    - name: miner的返回
+      debug:
+        msg: "{{minerId}}.stdout_lines"
+
+    - name: 生成PeerID结果文件到中控机
+      shell: echo   {{ minerId.stdout }}  {{ peerId.stdout }} >> miner.txt
+      connection: local

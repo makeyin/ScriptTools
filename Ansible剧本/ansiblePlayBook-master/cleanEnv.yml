@@ -1,0 +1,24 @@
+---
+    - hosts: "all"
+      gather_facts: no
+      remote_user: "{{ minerUser }}"
+      become_user: "{{ minerUser }}"
+      tasks:
+        - name: 复制empty.py
+          copy:
+            force: true
+            dest: "~/empty.py"
+            src: "script/empty.py"
+            mode: 0750
+            owner: "{{ minerUser }}"
+
+        - name: kill process
+          shell: ~/bin/view_lotus.sh stopall
+          ignore_errors: True
+
+        - name: 干掉软连
+          shell: cd /home/{{ minerUser }}; find .lotusslave -name sc-02-data-tree-d.dat -exec rm {} \;
+          ignore_errors: True
+
+        - name: 执行
+          shell: cd /home/{{ minerUser }}; ls -a|grep .lotusslave|xargs  -L1 -I {} python3  empty.py {}

@@ -1,0 +1,47 @@
+- hosts: "{{ minerleader_hosts }}"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 创建备份文件
+      file:
+        path: /tmp/ChainData_Backup/lotus
+        state: directory
+        mode: 0775
+
+    - name: 复制备份脚本
+      copy:
+        force: true
+        dest: "~/bin/copyChain.sh"
+        src: "./script/copyChain.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 本地区块文件rsyc同步
+      shell: rsync -rvzuP --delete  ~/.lotus/datastore/  /tmp/ChainData_Backup/lotus/
+      register: chain
+
+    - name: "rsyc结果"
+      debug: var=chain.stdout verbosity=0
+
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: "rsyc同步"
+      shell: /bin/bash ./rsycLotusChain.sh
+      register: rsyc
+
+    - name: "rsyc结果"
+      debug: var=rsyc.stdout
+
+- hosts: "{{ minerleader_hosts }}"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 关闭存在的原进程
+      ignore_errors: True
+      shell: "kill -9 `ps -ef | grep copy |awk '{print $2}'`"
+
+    - name: 启动
+      shell: "setsid ~/bin/copyChian.sh > ~/log/lotusCopyChain.out 2>&1 &"

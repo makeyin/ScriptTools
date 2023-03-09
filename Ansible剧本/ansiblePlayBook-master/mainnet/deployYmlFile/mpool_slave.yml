@@ -1,0 +1,522 @@
+#### 该剧本只用来搭建矿池的slave，并且是bin分离的版本
+#### 运行命令：ansible-playbook mpool_slave.yml  -i mpool_host  -e @mpoolConf.yml
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+  - downloadBinMode: true
+  tasks:
+    - name: 删除lotus.tar
+      file:
+        path: /tmp/lotus.tar
+        state: absent
+
+    - name: "下载bin文件"
+      get_url:
+        url: "{{ slaveBinUrl }}"
+        dest: "/tmp/lotus.tar"
+      when: downloadBinMode is defined and downloadBinMode== true
+
+    - name: 删除slave_PeerID
+      file:
+        path: /home/ansible/ansiblePlayBook/lotus/mainnet/deployYmlFile/slave_PeerID.txt
+        state: absent
+
+- hosts: slave
+  remote_user: shiyi
+  become: yes
+  become_user: root
+  strategy: free
+  tasks:
+    - name: 更改tank权限
+      shell: sudo chmod 777 /tank1 /tank2; sudo  chmod 777  /tank3 -R; sudo  chmod 777  /tank4 -R
+      ignore_errors: True
+
+    - name: 清理devnet_h
+      shell: mv /{{tank}}/.lotusslave_{{minerUser}}_{{GroupName}} /{{tank}}/.lotusslave_{{minerUser}}_{{GroupName}}.`date +%m%d%H%M`
+      ignore_errors: True
+      when: addNewStoragePath == true
+
+    - name: 添加tank路径
+      shell: sudo mkdir -m 777 -p /{{tank}}/.lotusslave_{{minerUser}}_{{GroupName}}
+      #ignore_errors: True
+      when: addNewStoragePath == true
+
+- hosts: slave
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  strategy: free
+  vars:
+  - isPrivateNet: false
+  - downloadBinMode: true
+  - initNewNodeMode: true
+  - killDaemonMode: true
+  - slaveAPIPort: 3456
+  - slaveListenPort: 8475
+  - posterAPIPort: 4567
+  - posterListenPort: 9475
+  - slaveAddPieceLimit: 2
+  - slavePreCommit1Limit: 20
+  - slavePreCommit2Limit: 1
+  - slaveCommit1Limit: 2
+  - slaveCommit2Limit: 1
+  - slaveImportSectorLimit: 1
+  - slaveTryMaxNum: 60
+  - slaveTryInterval: 10
+  - slaveOutsource: false
+  - slaveToken: "tianru"
+  - slaveProviders: []
+  tasks:
+    - name: 建bin目录
+      file:
+        force: true
+        path: "~/bin"
+        state: directory
+
+    - name: 建log目录
+      file:
+        force: true
+        path: "~/log"
+        state: directory
+
+    - name: 复制view_lotus.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "/home/ansible/ansiblePlayBook/lotus/mainnet/script/view_lotus.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 更改OPTION17
+      shell: sed -i 's/export OPTION17=.*/export OPTION17={{ OPTION17 }}/g' ~/bin/view_lotus.sh
+      ignore_errors: True
+      when: OPTION17 is defined
+
+    - name: 更改OPTION14
+      shell: sed -i 's/export OPTION14=.*/export OPTION14={{ OPTION14 }}/g' ~/bin/view_lotus.sh
+      ignore_errors: True
+      when: OPTION14 is defined
+
+    - name: 更改OPTION15
+      shell: sed -i 's/export OPTION15=.*/export OPTION15={{ OPTION15 }}/g' ~/bin/view_lotus.sh
+      ignore_errors: True
+      when: OPTION15 is defined
+
+    - name: 设置kafka-groupName
+      lineinfile:
+        backrefs: yes
+        dest: "~/bin/view_lotus.sh"
+        state: "present"
+        regexp: '  export RELATION_GROUP_NAME=group_name'
+        line: '  export RELATION_GROUP_NAME={{ GroupName }}'
+
+    - name: 设置kafka-customeName
+      lineinfile:
+        backrefs: yes
+        dest: "~/bin/view_lotus.sh"
+        state: "present"
+        regexp: '  export CUSTOMER_NAME=customer_name'
+        line: '  export CUSTOMER_NAME={{ customer_name }}'
+
+    - name: 复制filGuard.sh
+      copy:
+        force: true
+        dest: "~/bin/filGuard.sh"
+        src: "../script/filGuard.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 关闭原先运行的程序
+      ignore_errors: True
+      shell: "~/bin/view_lotus.sh stopall"
+      when: initNewNodeMode == true or killDaemonMode == true
+
+    - name: 强制清理环境
+      ignore_errors: True
+      shell: ~/bin/view_lotus.sh cleanEnv
+      when: initNewNodeMode == true
+
+    - name: 删除旧的bin文件
+      shell: ~/bin/view_lotus.sh cleanBin
+      ignore_errors: True
+      when: downloadBinMode == true
+
+    - name: 清理tank4
+      shell: cd /tank4;rm -rf vde
+      ignore_errors: True
+      when: deleteTank4 == true
+
+    - name: 验证bin文件是否存在
+      shell: chmod 775 ~/bin/lotus-slave-miner
+      ignore_errors: True
+      register: hasInstall
+
+    - name: 复lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.tar"
+        dest: "~/bin/lotus.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: (hasInstall is failed) or (downloadBinMode == true)
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf lotus.tar; chmod 750 lotus-slave-miner; rm -f lotus lotus-miner"
+      when: (hasInstall is failed) or (downloadBinMode == true)
+
+    - name: 检查bin文件是否存在
+      shell: chmod 775 ~/bin/lotus-slave-miner
+      ignore_errors: True
+      register: hasInstall
+
+    - fail: msg="DEPLOY ERROR!!! INSTALL FAILED： quite installPB because lotus file is missing"
+      when: hasInstall is failed
+
+    - name: 验证lotus是否运行
+      ignore_errors: True
+      shell: ~/bin/lotus-slave-miner net id
+      register: hasRunning
+
+    - name: debug hasRunning
+      debug:
+        msg: "{{hasRunning}}"
+
+    - name: slave节点init slave
+      shell: ~/bin/lotus-slave-miner init
+      when: initNewNodeMode == true
+
+    - name: slave节点init poster
+      shell: ~/bin/lotus-poster init --actor {{minerid}}
+      when: initNewNodeMode == true
+
+    - name: 设置Relation GroupName
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  GroupName.*$'
+        line: '  GroupName = "{{ GroupName }}"'
+
+    - name: 设置slave的APIPort
+      shell: sed -i "/ListenAddress/ s|3456|{{ slaveAPIPort }}|" ~/.lotusslave/config.toml
+
+    - name: 设置slave的ListenPort
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  ListenPort.*$'
+        line: '  ListenPort = {{ slaveListenPort }}'
+
+    - name: 设置AddPieceCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "AddPieceLimit".*$'
+        line: '    "AddPieceLimit": {{ slaveAddPieceLimit }},'
+
+    - name: 设置PreCommit1Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "PreCommit1Limit".*$'
+        line: '    "PreCommit1Limit": {{ slavePreCommit1Limit }},'
+
+    - name: 设置PreCommit2Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "PreCommit2Limit".*$'
+        line: '    "PreCommit2Limit": {{ slavePreCommit2Limit }},'
+
+    - name: 设置Commit1Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "Commit1Limit".*$'
+        line: '    "Commit1Limit": {{ slaveCommit1Limit }},'
+
+    - name: 设置Commit2Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "Commit2Limit".*$'
+        line: '    "Commit2Limit": {{ slaveCommit2Limit }},'
+
+    - name: 设置ImportSectorLimit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "ImportSectorLimit".*$'
+        line: '    "ImportSectorLimit": {{ slaveImportSectorLimit }}'
+
+    - name: 设置存储集群开关
+      shell: sed -i "/\[StorageCluster\]/{n;s/false/true/g}" .lotusslave/config.toml
+      when: StorageCluster == true
+
+    - name: 设置uphost2
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  UpHosts =.*$'
+        line: '  UpHosts = ["http://10.10.24.190:5010","http://10.10.24.191:5010","http://10.10.24.192:5010","http://10.10.24.193:5010","http://10.10.24.194:5010","http://10.10.24.195:5010","http://10.10.24.196:5010","http://10.10.24.197:5010","http://10.10.24.198:5010","http://10.10.24.199:5010","http://10.10.24.200:5010","http://10.10.24.201:5010","http://10.10.24.202:5010","http://10.10.24.203:5010","http://10.10.24.204:5010","http://10.10.24.205:5010","http://10.10.24.206:5010","http://10.10.24.207:5010","http://10.10.24.208:5010","http://10.10.24.209:5010","http://10.10.24.210:5010","http://10.10.24.211:5010","http://10.10.24.212:5010","http://10.10.24.143:5010","http://10.10.24.144:5010","http://10.10.24.145:5010","http://10.10.24.146:5010","http://10.10.24.147:5010","http://10.10.24.148:5010","http://10.10.24.149:5010","http://10.10.24.150:5010","http://10.10.24.151:5010","http://10.10.24.152:5010","http://10.10.24.153:5010","http://10.10.24.154:5010","http://10.10.24.155:5010","http://10.10.24.156:5010","http://10.10.24.157:5010","http://10.10.24.158:5010","http://10.10.24.159:5010","http://10.10.24.160:5010","http://10.10.24.161:5010","http://10.10.24.162:5010","http://10.10.24.163:5010","http://10.10.36.36:5010","http://10.10.36.37:5010","http://10.10.36.38:5010","http://10.10.36.39:5010","http://10.10.36.40:5010","http://10.10.36.41:5010","http://10.10.24.78:5010","http://10.10.24.79:5010","http://10.10.24.80:5010","http://10.10.24.81:5010","http://10.10.24.82:5010","http://10.10.24.83:5010","http://10.10.24.84:5010","http://10.10.24.85:5010","http://10.10.24.86:5010","http://10.10.24.87:5010","http://10.10.24.88:5010","http://10.10.24.89:5010","http://10.10.24.91:5010","http://10.10.24.90:5010","http://10.10.24.92:5010","http://10.10.24.93:5010","http://10.10.24.94:5010","http://10.10.24.95:5010","http://10.10.24.96:5010","http://10.10.24.97:5010","http://10.10.24.98:5010","http://10.10.24.99:5010","http://10.10.24.100:5010","http://10.10.24.101:5010","http://10.10.24.102:5010","http://10.10.24.103:5010","http://10.10.24.104:5010","http://10.10.24.105:5010","http://10.10.24.106:5010","http://10.10.24.107:5010","http://10.10.24.108:5010","http://10.10.24.109:5010","http://10.10.24.112:5010","http://10.10.24.113:5010","http://10.10.24.114:5010","http://10.10.24.115:5010","http://10.10.24.116:5010","http://10.10.24.117:5010","http://10.10.24.118:5010","http://10.10.24.119:5010","http://10.10.26.1:5010","http://10.10.26.2:5010","http://10.10.26.3:5010","http://10.10.26.4:5010","http://10.10.26.5:5010","http://10.10.26.6:5010","http://10.10.26.7:5010","http://10.10.26.8:5010","http://10.10.26.9:5010","http://10.10.26.10:5010","http://10.10.26.11:5010","http://10.10.26.12:5010","http://10.10.26.13:5010","http://10.10.26.14:5010","http://10.10.26.15:5010","http://10.10.26.16:5010","http://10.10.26.17:5010","http://10.10.26.18:5010","http://10.10.26.19:5010","http://10.10.26.20:5010","http://10.10.26.21:5010","http://10.10.26.22:5010","http://10.10.26.23:5010","http://10.10.26.24:5010","http://10.10.26.25:5010","http://10.10.26.26:5010","http://10.10.26.27:5010","http://10.10.26.28:5010","http://10.10.26.29:5010","http://10.10.26.30:5010","http://10.10.26.31:5010","http://10.10.26.32:5010","http://10.10.26.33:5010","http://10.10.26.34:5010","http://10.10.26.35:5010","http://10.10.26.36:5010","http://10.10.26.37:5010","http://10.10.26.38:5010","http://10.10.26.39:5010","http://10.10.26.40:5010","http://10.10.26.41:5010","http://10.10.26.42:5010","http://10.10.26.43:5010","http://10.10.26.44:5010","http://10.10.26.45:5010","http://10.10.26.46:5010","http://10.10.26.47:5010","http://10.10.26.48:5010","http://10.10.26.49:5010","http://10.10.26.50:5010","http://10.10.26.51:5010","http://10.10.26.52:5010","http://10.10.26.53:5010","http://10.10.26.54:5010","http://10.10.26.55:5010","http://10.10.26.56:5010","http://10.10.26.57:5010","http://10.10.26.58:5010","http://10.10.26.59:5010","http://10.10.26.60:5010"]'
+      when: uphost2 == true
+
+    - name: 设置uphost1
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  UpHosts =.*$'
+        line: '  UpHosts = ["http://10.10.24.10:5010","http://10.10.24.11:5010","http://10.10.24.12:5010","http://10.10.24.13:5010","http://10.10.24.14:5010","http://10.10.24.15:5010","http://10.10.24.16:5010","http://10.10.24.17:5010","http://10.10.24.18:5010","http://10.10.24.19:5010","http://10.10.24.20:5010","http://10.10.24.21:5010","http://10.10.24.22:5010","http://10.10.24.23:5010","http://10.10.24.24:5010","http://10.10.24.25:5010","http://10.10.24.26:5010","http://10.10.24.27:5010","http://10.10.24.28:5010","http://10.10.24.29:5010","http://10.10.24.3:5010","http://10.10.24.30:5010","http://10.10.24.31:5010","http://10.10.24.32:5010","http://10.10.24.33:5010","http://10.10.24.34:5010","http://10.10.24.35:5010","http://10.10.24.36:5010","http://10.10.24.37:5010","http://10.10.24.38:5010","http://10.10.24.39:5010","http://10.10.24.4:5010","http://10.10.24.40:5010","http://10.10.24.41:5010","http://10.10.24.42:5010","http://10.10.24.43:5010","http://10.10.24.44:5010","http://10.10.24.45:5010","http://10.10.24.46:5010","http://10.10.24.47:5010","http://10.10.24.48:5010","http://10.10.24.49:5010","http://10.10.24.5:5010","http://10.10.24.50:5010","http://10.10.24.51:5010","http://10.10.24.52:5010","http://10.10.24.53:5010","http://10.10.24.54:5010","http://10.10.24.55:5010","http://10.10.24.56:5010","http://10.10.24.57:5010","http://10.10.24.58:5010","http://10.10.24.59:5010","http://10.10.24.6:5010","http://10.10.24.60:5010","http://10.10.24.61:5010","http://10.10.24.62:5010","http://10.10.24.63:5010","http://10.10.24.64:5010","http://10.10.24.65:5010","http://10.10.24.66:5010","http://10.10.24.67:5010","http://10.10.24.68:5010","http://10.10.24.69:5010","http://10.10.24.7:5010","http://10.10.24.8:5010","http://10.10.24.9:5010","http://10.10.24.70:5010"]'
+      when: uphost1 == true
+
+    - name: 设置Bucket
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  Bucket =.*$'
+        line: '  Bucket = "{{ Bucket }}"'
+
+    - name: 设置Ak
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  Ak =.*$'
+        line: '  Ak = "{{ Ak }}"'
+
+    - name: 设置Sk
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  Sk =.*$'
+        line: '  Sk = "{{ Sk }}"'
+
+    - name: 设置MaxUploadingLimit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  MaxUploadingLimit =.*$'
+        line: '  MaxUploadingLimit = 1'
+
+    - name: 设置PartUpBlockingCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  PartUpBlockingCount =.*$'
+        line: '  PartUpBlockingCount = {{ PartUpBlockingCount }}'
+
+    - name: 设置SectorPartSize
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  SectorPartSize =.*$'
+        line: '  SectorPartSize = "{{ SectorPartSize }}"'
+
+
+    - name: 设置SyncLevel
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: '  SyncLevel =.*$'
+        line: '  SyncLevel = "{{ SyncLevel }}"'
+
+
+    - name: 读取masterID.txt
+      shell: "cat masterID.txt"
+      register: master
+      connection: local
+      when: masterID == ""
+
+    - name: 更新slave的masterid
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: 'BootstrapPeers'
+        insertafter: '  ListenPort.*'
+        #line: '  BootstrapPeers = ["/dns4/guideslave.valuechain.group/tcp/18000/p2p/12D3KooWSJqnP7U3MSooK5VmKUDNcZ25xRh3HLUvQFjmAmMBBgKA","{{ master.stdout }}"]'
+        line: '  BootstrapPeers = ["{{ master.stdout }}"]'
+      when: masterID == ""
+
+    - name: 更新slave的masterid
+      lineinfile:
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: 'BootstrapPeers'
+        insertafter: '  ListenPort.*'
+        #line: '  BootstrapPeers = ["/dns4/guideslave.valuechain.group/tcp/18000/p2p/12D3KooWSJqnP7U3MSooK5VmKUDNcZ25xRh3HLUvQFjmAmMBBgKA","{{ masterID }}"]'
+        line: '  BootstrapPeers = ["{{ masterID }}"]'
+      when: masterID != ""
+
+    - name: 更新slave的连接osp的开关
+      shell: sed -i "/\[Outsource\]/{n;s/false/true/g}" .lotusslave/config.toml
+      when: slaveOutsource is defined and slaveOutsource == true
+
+    - name: 更新slave的连接osp的slaveToken
+      shell: sed -i "/\[Outsource\]/{n;n;s/Token =.*$/Token = \"{{ slaveToken }}\"/g}" .lotusslave/config.toml
+      when: slaveOutsource == true
+
+    - name: 更新slave的连接osp的slaveProviders
+      lineinfile:
+        dest: "~/.lotusslave/config.toml"
+        state: "present"
+        regexp: 'Providers'
+        line: '  Providers = {{ slaveProviders }}'
+      when: slaveOutsource == true
+
+    - name: 更新slave的连接osp的slaveProviders去掉u
+      shell: sed -i "s/\[u'/\['/g" .lotusslave/config.toml;sed -i "s/,u'/,'/g" .lotusslave/config.toml;sed -i "s/, u'/,'/g" .lotusslave/config.toml
+      when: slaveOutsource == true
+
+    - name: 更新poster的Relation GroupName
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: '  GroupName.*$'
+        line: '  GroupName = "{{ PGroupName }}"'
+
+    - name: 设置poster的APIPort
+      shell: sed -i "/ListenAddress/ s|4567|{{ posterAPIPort }}|" ~/.lotusposter/config.toml
+
+    - name: 更新poster的ListenPort
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: '  ListenPort.*$'
+        line: '  ListenPort = {{ posterListenPort }}'
+
+    - name: 更新poster的masterid
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: 'BootstrapPeers'
+        insertafter: '  ListenPort.*'
+        #line: '  BootstrapPeers = ["/dns4/guideslave.valuechain.group/tcp/18000/p2p/12D3KooWSJqnP7U3MSooK5VmKUDNcZ25xRh3HLUvQFjmAmMBBgKA","{{ master.stdout }}"]'
+        line: '  BootstrapPeers = {{ master.stdout }}'
+      when: masterID == ""
+
+    - name: 更新poster的masterid
+      lineinfile:
+        dest: "~/.lotusposter/config.toml"
+        state: "present"
+        regexp: 'BootstrapPeers'
+        insertafter: '  ListenPort.*'
+        #line: '  BootstrapPeers = ["/dns4/guideslave.valuechain.group/tcp/18000/p2p/12D3KooWSJqnP7U3MSooK5VmKUDNcZ25xRh3HLUvQFjmAmMBBgKA","{{ masterID }}"]'
+        line: '  BootstrapPeers = {{ pmasterID }}'
+      when: masterID != ""
+
+    - name: 更新slave的连接osp的slaveProviders去掉u
+      shell: sed -i "s/\[u'/\['/g" .lotusposter/config.toml;sed -i "s/,u'/,'/g" .lotusposter/config.toml;sed -i "s/, u'/,'/g" .lotusposter/config.toml
+
+    - name: 先启动poster节点
+      shell: "~/bin/view_lotus.sh poster"
+
+    - name: 等待lotus-poster节点启动完成
+      shell: ~/bin/lotus-poster net id
+      ignore_errors: True
+      register: hasPosterRunning
+      until: "'API not running' not in hasPosterRunning.stderr"
+      retries: "{{slaveTryMaxNum}}"
+      delay: "{{slaveTryInterval}}"
+
+    - name: 再启动slave节点
+      shell: "~/bin/view_lotus.sh slave"
+
+    - name: 添加第二个storage path
+      shell: ~/bin/lotus-slave-miner storage attach  --seal=true --store=true --init /{{tank}}/.lotusslave_{{minerUser}}_{{GroupName}}
+      when: addNewStoragePath == true
+
+    - name: 等待lotus-slave-miner节点启动完成
+      shell: ~/bin/lotus-slave-miner net id
+      ignore_errors: True
+      register: hasSlaveRunning
+      until: "'API not running' not in hasSlaveRunning.stderr"
+      retries: "{{slaveTryMaxNum}}"
+      delay: "{{slaveTryInterval}}"
+
+    - name: "复制注册脚本"
+      copy:
+        force: true
+        src: "../script/consul.sh"
+        dest: "/tmp/consul.sh"
+        mode: 0777
+
+    - name: 更改配置文件的端口
+      lineinfile:
+        backrefs: yes
+        dest: "/tmp/consul.sh"
+        state: "present"
+        regexp: 'port1=.*$'
+        line: 'port1=19403'
+
+    - name: 更改配置文件的注册地址
+      lineinfile:
+        backrefs: yes
+        dest: "/tmp/consul.sh"
+        state: "present"
+        regexp: 'regUrl=http://117.173.15.160:8500/v1/agent/service/register'
+        line: 'regUrl={{ regUrl }}'
+
+    - name: 更改配置文件的注册名称
+      lineinfile:
+        backrefs: yes
+        dest: "/tmp/consul.sh"
+        state: "present"
+        regexp: 'regName=prometheus-node-my'
+        line: 'regName={{ GroupName }}'
+
+    - name: 更改IP
+      lineinfile:
+        backrefs: yes
+        dest: "/tmp/consul.sh"
+        state: "present"
+        regexp: 'app_ip=192.169.1.1'
+        line: 'app_ip={{ inventory_hostname }}'
+
+    - name: 执行注册
+      shell: "/tmp/consul.sh"
+      ignore_errors: True
+
+    - name: 记录slave的peerID
+      shell: ~/bin/lotus-slave-miner net id
+      register: slaveNetID
+
+    - name: 记录poster的peerID
+      shell: ~/bin/lotus-poster net id
+      register: posterNetID
+
+    # - name: check log
+    #   debug:
+    #     msg: "{{netID.stdout}}"
+
+    - name: 生成PeerID结果文件到中控机
+      shell: echo {{ inventory_hostname }}  {{ slaveNetID.stdout }}  {{ posterNetID.stdout }} >> slave_PeerID.txt
+      connection: local
+      register: slaveid
+
+    - name: 输出slavePeerId1
+      debug:
+        msg: "{{slaveid}}"
+
+    - name: 输出slavePeerId2
+      shell: cat slave_PeerID.txt
+      connection: local

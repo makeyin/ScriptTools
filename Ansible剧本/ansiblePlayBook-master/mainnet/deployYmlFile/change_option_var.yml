@@ -1,0 +1,67 @@
+- hosts: all
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 设置PreCommit1Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "PreCommit1Limit".*$'
+        line: '    "PreCommit1Limit": {{ slavePreCommit1Limit }},'
+      when: slavePreCommit1Limit is defined
+
+    - name: 设置AddPiece
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusslave/storage.json"
+        state: "present"
+        regexp: '    "AddPieceLimit".*$'
+        line: '    "AddPieceLimit": {{ AddPiece }},'
+      when: AddPiece is defined
+
+    - name: 更改OPTION17
+      shell: sed -i 's/export OPTION17=.*/export OPTION17={{ OPTION17 }}/g' ~/bin/view_lotus.sh
+      ignore_errors: True
+      when: OPTION17 is defined
+
+    - name: 更改OPTION14
+      shell: sed -i 's/export OPTION14=.*/export OPTION14={{ OPTION14 }}/g' ~/bin/view_lotus.sh
+      ignore_errors: True
+      when: OPTION14 is defined
+
+    - name: 更改OPTION15
+      shell: sed -i 's/export OPTION15=.*/export OPTION15={{ OPTION15 }}/g' ~/bin/view_lotus.sh
+      ignore_errors: True
+      when: OPTION15 is defined
+
+    - name: 更改OPTION7
+      shell: sed -i 's/export OPTION7=.*/export OPTION7={{ OPTION7 }}/g' ~/bin/view_lotus.sh
+      ignore_errors: True
+      when: OPTION7 is defined
+
+    - name: 更改ConnMgrHigh
+      shell: sed -i 's/  ConnMgrHigh =.*/  ConnMgrHigh = {{ ConnMgrHigh }}/g' ~/.lotusslave/config.toml
+      ignore_errors: True
+      when: ConnMgrHigh is defined
+
+    - name: 更改posterConnMgrHigh
+      shell: sed -i 's/  ConnMgrHigh =.*/  ConnMgrHigh = {{ ConnMgrHigh }}/g' ~/.lotusposter/config.toml
+      ignore_errors: True
+      when: ConnMgrHigh is defined
+
+    - name: 更改OPTION
+      shell: sed -i 's/export OPTION{{ optionNum }}=.*/export OPTION{{ optionNum }}={{ optionValue }}/g' ~/bin/view_lotus.sh
+      ignore_errors: True
+      when: optionNum is defined and optionValue is defined
+
+    - name: 启动poster节点
+      shell: "~/bin/view_lotus.sh poster"
+      when: posterRestart is defined and posterRestart == true
+
+    - name: 启动slave节点
+      shell: "~/bin/view_lotus.sh slave"
+      when: slaveRestart is defined and slaveRestart == true
+
+

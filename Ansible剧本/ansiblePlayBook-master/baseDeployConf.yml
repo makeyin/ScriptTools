@@ -1,0 +1,57 @@
+---
+minerUser: 'devnet'
+miner_hosts: 'all'
+isPrivateNet: 'true'
+
+############ host中只有slave机器时，需要写master的storage miner的ID #######
+masterID: ''
+
+### 填写devnet.car的url
+downloadGenesisFileUrl: 'http://223.111.184.236:8090/devnet.car'
+
+### 普通节点的分支名
+downloadBinUrl: 'http://file.valuechain.group/refs/heads/devnet9.lotus.dev.tar?OSSAccessKeyId=LTAI4Fn4zCozDjaJL3eJ6Vja&Expires=1578049339&Signature=UfTyKzgRqUUSs020jOXLhbjFmtk%3D'
+
+### tabUrl是水龙头地址
+tapUrl: 'http://223.111.184.236:9292'
+
+###创世节点的peerID
+genesisPeerID: '/ip4/223.111.184.236/tcp/40579/p2p/12D3KooWNfgqvkGGnergufBPv3kKEjNg5QqvfiXPML6xoQEN8JfH'
+genesisStoragePeerID: ''
+
+### 一般不需要修改
+downloadBinMode: 'true'
+initNewNodeMode: 'true'
+killDaemonMode: true
+startNodeTryMaxNum: 300
+startNodeTryInterval: 10
+createMinerTryMaxNum: 600
+createMinerTryInterval: 10
+###################### sectorSize根据需要改###################
+#sectorSize: 1073741824
+sectorSize: 16777216
+#sectorSize: 268435456
+#### master配置
+masterAddPieceCount: 4
+masterPreCommitCount: 4
+masterCommittingCount: 4
+masterImportSealedSectorCount: 8
+ProxySealType: 1
+EnableSelfSeal: 'false'
+SendDealTickBlocks: 2
+SendPowerTickBlocks: 3
+LimitWaitWorkCount: 3
+MaxSealTotal: 200000
+MaxWaitWorkCount: 10
+###################### GroupName根据需要改###################
+GroupName: 'cz248pri'
+
+#### slave配置
+slaveAddPieceCount: 4
+slavePreCommitCount: 4
+slaveCommittingCount: 4
+slaveImportSealedSectorCount: 8
+
+#### 一拖n相关
+master_hosts: 'master'
+slave_hosts: 'slave'

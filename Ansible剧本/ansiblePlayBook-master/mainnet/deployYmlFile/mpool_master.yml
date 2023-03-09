@@ -1,0 +1,448 @@
+### 搭建矿池的testnet3 master的剧本
+### 命令:   ansible-playbook mpool_master.yml  -i mpool_host  -e @mpoolConf.yml
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+  - isPrivateNet: false
+  - downloadBinMode: true
+  tasks:
+    - name: 删除devnet.car文件
+      file:
+        path: /tmp/devnet.car
+        state: absent
+
+    - name: 删除lotus.tar
+      file:
+        path: /tmp/lotus.tar
+        state: absent
+
+    - name: 下载devnet.car
+      get_url:
+        url: "{{ downloadGenesisFileUrl }}"
+        dest: "/tmp/devnet.car"
+      when: downloadBinMode is defined and downloadBinMode==true and isPrivateNet == true
+
+    - name: "下载bin文件"
+      get_url:
+        url: "{{ masterBinUrl }}"
+        dest: "/tmp/lotus.tar"
+      when: downloadBinMode is defined and downloadBinMode==true
+
+- hosts: master
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  - isPrivateNet: false
+  - downloadBinMode: true
+  - initNewNodeMode: true
+  - killDaemonMode: true
+  - startNodeTryMaxNum: 300
+  - startNodeTryInterval: 10
+  - createMinerTryMaxNum: 600
+  - createMinerTryInterval: 10
+  - masterAddPieceLimit: 2
+  - masterPreCommit1Limit: 2
+  - masterPreCommit2Limit: 2
+  - masterCommit1Limit: 2
+  - masterCommit2Limit: 2
+  - masterImportSectorLimit: 4
+  - masterSleepForSyncSeconds: "15s"
+  - masterPublishClockDrift: "900ms"
+  - masterFlexibleSleepTime: "5s"
+  - masterSleepForGetBaseTwice: "25s"
+  - masterVanillaTimeout: 10
+  - EnableSelfSeal: 'false'
+  - SendDealTickBlocks: 1
+  - SendPowerTickBlocks: 1
+  - LimitWaitWorkCount: 2
+  - MaxSealTotal: 400000
+  - MaxWaitWorkCount: 4
+  - sectorSize: 34359738368
+  tasks:
+    - name: 创建bin目录
+      file:
+        force: true
+        path: "~/bin"
+        state: directory
+
+    - name: 建log目录
+      file:
+        force: true
+        path: "~/log"
+        state: directory
+
+    - name: 复制view_lotus_gpu.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "/home/ansible/ansiblePlayBook/lotus/mainnet/script/view_lotus.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 复制filGuard.sh
+      copy:
+        force: true
+        dest: "~/bin/filGuard.sh"
+        src: "/home/ansible/ansiblePlayBook/lotus/mainnet/script/filGuard.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 关闭原先运行的程序
+      ignore_errors: True
+      shell: "~/bin/view_lotus.sh stopall"
+      when: initNewNodeMode == true or killDaemonMode == true
+
+    - name: 强制清理环境
+      ignore_errors: True
+      shell: ~/bin/view_lotus.sh cleanEnv
+      when: initNewNodeMode == true
+
+    - name: 删除旧的bin文件
+      shell: ~/bin/view_lotus.sh cleanBin
+      when: downloadBinMode == true
+
+    - name: 验证bin文件是否存在
+      shell: "chmod 775 ~/bin/lotus"
+      ignore_errors: True
+      register: hasInstall
+
+    - name: 复制lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.tar"
+        dest: "~/bin/lotus.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: (hasInstall is failed) or (downloadBinMode == true)
+
+    - name: 复制devnet.car文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/devnet.car"
+        dest: "~/bin/devnet.car"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: isPrivateNet == true
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf lotus.tar;chmod 750 lotus; chmod 750 lotus-miner"
+      when: (hasInstall is failed) or (downloadBinMode == true)
+
+    - name: 检查bin文件是否存在
+      shell: chmod 775 ~/bin/lotus
+      ignore_errors: True
+      register: hasInstall
+
+    - fail: msg="DEPLOY ERROR!!! INSTALL FAILED： quite installPB because lotus file is missing"
+      when: hasInstall is failed
+
+    - name: 启动lotus daemon-私网
+      ignore_errors: True
+      shell: setsid ~/bin/lotus daemon  --bootstrap=false --genesis=/home/$USER/bin/devnet.car  > ~/log/lotus.`date +"%m%d%H%M"`.out 2>&1 &
+      when: isPrivateNet == true
+
+    - name: 启动lotus daemon-公网
+      ignore_errors: True
+      shell: ~/bin/view_lotus.sh start
+      when: isPrivateNet == false
+
+    - name: 等待节点启动
+      shell: ~/bin/lotus net id
+      ignore_errors: True
+      register: hasRunning
+
+    - name: 等待链同步
+      shell: ~/bin/lotus sync wait
+      ignore_errors: True
+      register: chaindone
+      until: "'Done!'  in chaindone.stdout"
+      retries: "{{startNodeTryMaxNum}}"
+      delay: "{{startNodeTryInterval}}"
+      when: "'Done!' not in chaindone.stdout"
+
+    - name: debug hasRunning
+      debug:
+        msg: "{{chaindone}}"
+
+    - name: Private Net swarm connect genesisPeerID
+      shell: ~/bin/lotus net connect {{ genesisPeerID }}
+      when: isPrivateNet == true
+
+    - name: 获取钱包地址
+      shell: ~/bin/lotus wallet list
+      register: walletID
+      when: initNewNodeMode == true
+
+    - name: debug walletID
+      debug:
+        msg: "{{walletID}}"
+
+    - name: 如果没有钱包地址生成钱包地址
+      shell: ~/bin/lotus wallet new bls
+      register: walletID
+      when: initNewNodeMode == true and  walletID.stdout == ''
+
+    - name: 查看钱包余额
+      shell: ~/bin/lotus wallet balance {{ walletID.stdout }}
+      register: walletBalance
+      when: initNewNodeMode == true
+
+    - name: 转账
+      shell:  curl -g -i -X GET  "{{tapUrl}}/send?address={{walletID.stdout}}"
+      register: mkMinerResult
+      when: initNewNodeMode == true and walletBalance.stdout|int < 10
+
+    - name: debug hasRunning
+      debug:
+        msg: "{{mkMinerResult}}"
+#    - name: 水龙头
+#      #uri:
+#      #  url: "{{tapUrl}}"
+#      #  method: POST
+#      #  headers:
+#      #     address: "{{walletID.stdout}}"
+#      #     ectorSize: "{{sectorSize}}"
+#      shell: curl -i -X POST -D 300.txt -d "address={{walletID.stdout}}&sectorSize={{sectorSize}}" "{{tapUrl}}/mkminer"
+#      register: mkMinerResult
+#      when: initNewNodeMode == true and walletBalance.stdout|int < 10
+#
+#    - name: 查看水龙头的返回
+#      debug:
+#        msg: "{{mkMinerResult}}.stdout_lines"
+#      when: initNewNodeMode == true
+
+    - name: 等待包获取余额
+      shell: ~/bin/view_lotus.sh wallet
+      ignore_errors: True
+      register: walletBalance
+      #until: walletBalance.stdout != "0 FIL"
+      until: "'0 FIL' not in walletBalance.stdout"
+      retries: "{{createMinerTryMaxNum}}"
+      delay: "{{createMinerTryInterval}}"
+      #when: initNewNodeMode == true
+      when: "'0 FIL' in walletBalance.stdout"
+
+
+    - name: debug hasRunning
+      debug:
+        msg: "{{walletBalance}}"
+#    - name: 继续curl
+#      shell: cat 300.txt |grep Location |awk -F "f=" '{print $2}'|awk -F "&m" '{print $1}' > pid.txt
+#      register: cat
+#      when: initNewNodeMode == true
+#
+#    - name: cat的返回
+#      debug:
+#        msg: "{{cat}}.stdout"
+#      when: initNewNodeMode == true
+
+#    - name: 继续curl
+#      shell: curl "{{tapUrl}}"/msgwaitaddr?cid=`cat pid.txt` >400.txt
+#      register: curl1
+#      when: initNewNodeMode == true
+
+#    - name: curl1的返回
+#      debug:
+#        msg: "{{curl1}}.stdout"
+#      when: initNewNodeMode == true
+
+#    - name: curl结果
+#      shell: cat 400.txt|awk -F ":" '{print $2}'|awk -F "}" '{print $1}' >500.txt
+#      register: curl2
+#      when: initNewNodeMode == true
+
+#    - name: curl2的返回
+#      debug:
+#        msg: "{{curl2}}.stdout"
+#      when: initNewNodeMode == true
+
+#    - name: 是否
+#      shell: cat 500.txt |sed 's/ //g'
+#      register: id
+#      until: id.stdout.find("t") != -1
+#      retries: "{{createMinerTryMaxNum}}"
+#      delay: "{{createMinerTryInterval}}"
+#      when: initNewNodeMode == true
+
+#    - name: id的返回
+#      debug:
+#        msg: "{{id}}.stdout"
+#      when: initNewNodeMode == true
+
+    - name: 初始化lotus miner
+      shell: ~/bin/lotus-miner init  --sector-size={{sectorsSize}}
+      register: init
+      when: initNewNodeMode == true and "'API not running' in haslotusRunning.stderr"
+
+    - name: init的返回
+      debug:
+        msg: "{{init}}.stdout"
+      when: initNewNodeMode == true
+
+    - name: 设置AddPieceCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/storage.json"
+        state: "present"
+        regexp: '    "AddPieceLimit".*$'
+        line: '    "AddPieceLimit": {{ masterAddPieceLimit }},'
+
+    - name: 设置PreCommit1Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/storage.json"
+        state: "present"
+        regexp: '    "PreCommit1Limit".*$'
+        line: '    "PreCommit1Limit": {{ masterPreCommit1Limit }},'
+
+    - name: 设置PreCommit2Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/storage.json"
+        state: "present"
+        regexp: '    "PreCommit2Limit".*$'
+        line: '    "PreCommit2Limit": {{ masterPreCommit2Limit }},'
+
+    - name: 设置Commit1Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/storage.json"
+        state: "present"
+        regexp: '    "Commit1Limit".*$'
+        line: '    "Commit1Limit": {{ masterCommit1Limit }},'
+
+    - name: 设置Commit2Limit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/storage.json"
+        state: "present"
+        regexp: '    "Commit2Limit".*$'
+        line: '    "Commit2Limit": {{ masterCommit2Limit }},'
+
+    - name: 设置ImportSectorLimit
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '    "ImportSectorLimit".*$'
+        line: '    "ImportSectorLimit": {{ masterImportSectorLimit }}'
+
+    - name: 设置SleepForSyncSeconds
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '  SleepForSyncSeconds.*$'
+        line: '   SleepForSyncSeconds = "{{ masterSleepForSyncSeconds }}"'
+
+    - name: 设置PublishClockDrift
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '  PublishClockDrift.*$'
+        line: '   PublishClockDrift = "{{ masterPublishClockDrift }}"'
+
+    - name: 设置FlexibleSleepTime
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '  FlexibleSleepTime.*$'
+        line: '   FlexibleSleepTime = "{{ masterFlexibleSleepTime }}"'
+
+    - name: 设置SleepForGetBaseTwice
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '  SleepForGetBaseTwice.*$'
+        line: '   SleepForGetBaseTwice = "{{ masterSleepForGetBaseTwice }}"'
+
+    - name: 设置VanillaTimeout
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '  VanillaTimeout.*$'
+        line: '   VanillaTimeout = {{ masterVanillaTimeout }}'
+
+    - name: 开启SendDealTickBlocks
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '  SendDealTickBlocks.*$'
+        line: '  SendDealTickBlocks = {{ SendDealTickBlocks }}'
+
+    - name: 设置SendPowerTickBlocks
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '  SendPowerTickBlocks.*$'
+        line: '  SendPowerTickBlocks = {{ SendPowerTickBlocks }}'
+
+    - name: 设置MaxSealTotal
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '  MaxSealTotal.*$'
+        line: '  MaxSealTotal = {{ MaxSealTotal }}'
+
+    - name: 设置发算力的LimitWaitWorkCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '  LimitWaitWorkCount.*$'
+        line: '  LimitWaitWorkCount = {{ LimitWaitWorkCount }}'
+
+    - name: 设置发算力的MaxWaitWorkCount
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '  MaxWaitWorkCount.*$'
+        line: '  MaxWaitWorkCount = {{ MaxWaitWorkCount }}'
+
+    - name: 设置Relation GroupName
+      lineinfile:
+        backrefs: yes
+        dest: "~/.lotusminer/config.toml"
+        state: "present"
+        regexp: '  GroupName.*$'
+        line: '  GroupName = "{{ GroupName }}"'
+
+    - name: 更新master lotus BootstrapPeers为创世节点
+      lineinfile:
+        dest: "~/.lotus/config.toml"
+        state: "present"
+        regexp: 'BootstrapPeers'
+        insertafter: '  ListenPort.*$'
+        line: '  BootstrapPeers = ["{{ genesisPeerID }}"]'
+      when: isPrivateNet == true
+
+    - name: 启动lotus-miner节点
+      shell: ~/bin/view_lotus.sh mining
+      when: "'API not running' in haslotusRunning.stderr"
+
+    - name: 等待lotus节点启动完成
+      shell: ~/bin/lotus-miner net id
+      ignore_errors: True
+      register: haslotusRunning
+      until: "'API not running' not in haslotusRunning.stderr"
+      retries: "{{createMinerTryMaxNum}}"
+      delay: "{{createMinerTryInterval}}"
+      when: "'API not running' in haslotusRunning.stderr"
+
+    - name: 获取master的lotus miner net-id
+      shell: "~/bin/lotus-miner net listen |grep ip4|grep -v 127.0.0.1"
+      register: masterId
+
+    - name: 保存masterID文件到中控机
+      shell: "echo {{ masterId.stdout }} > masterID.txt"
+      connection: local

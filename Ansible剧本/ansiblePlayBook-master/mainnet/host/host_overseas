@@ -1,0 +1,41 @@
+[master_AMD]
+213.227.129.68	##欧洲星际公链荷兰master_AMD
+23.90.146.133	##欧洲1475master_AMD
+89.149.209.97	##欧洲星际存储master_AMD
+89.149.209.98	##欧洲蝶链master_AMD
+197.231.176.51	##非洲星际存储master_AMD
+197.231.176.52	##非洲1475master_AMD
+162.251.92.5	##北美1475master_AMD
+103.29.66.52    ##大洋洲星际特工master_AMD
+103.29.66.53    ##大洋洲星际联盟master_AMD
+103.29.66.54    ##大洋洲矿无界master_AMD	
+
+[master_Intel]
+103.29.66.54       ansible_ssh_port=7823	##北美星际公链master_Intel
+#66.115.149.242	##北美赛道master_Intel
+
+[slave_AMD]
+95.211.3.247	##欧洲星际存储slave2_AMD
+37.48.116.176	##欧洲星际存储slave1_AMD
+37.48.72.139	##欧洲蝶链slave2_AMD
+213.227.129.69	##欧洲星际公链荷兰slave_AMD
+23.90.146.132	##欧洲1475slave_AMD
+37.48.72.136	##欧洲蝶链slave1_AMD
+197.231.176.50	##非洲星际存储slave_AMD
+197.231.176.53	##非洲1475slave_AMD
+103.29.66.55    ##大洋洲矿无界slave_AMD
+173.234.106.5	##大洋洲星际特工_悉尼lweb5
+173.234.106.7	##大洋洲矿无界_悉尼lweb7
+173.234.106.6	##大洋洲星际联盟_悉尼lweb6
+173.234.106.8	##大洋洲矿无界_悉尼lweb8
+162.251.92.6	##北美1475slave_AMD
+24.5.2.67       ansible_ssh_port=7822    ##北美星际公链slave_AMD
+
+#[slave_Intel]
+#66.115.149.244	##北美赛道slave2_Intel
+#66.115.149.245	##北美赛道slave3_Intel
+
+
+[all:vars]
+ansible_ssh_port=45823
+ansible_user=mainnet

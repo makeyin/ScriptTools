@@ -1,0 +1,167 @@
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: 删除devnet.car文件
+      file:
+        path: /tmp/devnet.car
+        state: absent
+
+    - name: 删除lotus.tar
+      file:
+        path: /tmp/lotus.tar
+        state: absent
+
+    - name: 下载devnet.car
+      get_url:
+        url: "{{ downloadGenesisFileUrl }}"
+        dest: "/tmp/devnet.car"
+      when: downloadBinMode is defined and downloadBinMode=="true" and isPrivateNet == "true"
+
+    - name: "下载bin文件"
+      get_url:
+        url: "{{ downloadBinUrl }}"
+        dest: "/tmp/lotus.tar"
+      when: downloadBinMode is defined and downloadBinMode=="true"
+
+- hosts: "{{master_hosts}}"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 创建bin目录
+      file:
+        force: true
+        path: "~/bin"
+        state: directory
+
+    - name: 复制view_lotus_gpu.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "script/view_lotus_gpu.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+      when: useGpu == "true"
+      
+    - name: 复制view_lotus.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "script/view_lotus.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+      when: useGpu == "false"
+
+    - name: 关闭原先运行的程序
+      ignore_errors: True
+      shell: "~/bin/view_lotus.sh stopall"
+      when: initNewNodeMode == "true" or killDaemonMode == "true"
+
+    - name: 强制清理环境
+      ignore_errors: True
+      shell: ~/bin/view_lotus.sh cleanEnv
+      when: initNewNodeMode == "true"
+
+    - name: 删除旧的bin文件
+      shell: ~/bin/view_lotus.sh cleanBin
+      when: downloadBinMode == "true"
+
+    - name: 验证bin文件是否存在
+      shell: "chmod 775 ~/bin/lotus"
+      ignore_errors: True
+      register: hasInstall
+
+    - name: 复制lotus文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/lotus.tar"
+        dest: "~/bin/lotus.tar"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: (hasInstall is failed) or (downloadBinMode == "true")
+
+    - name: 复制1475脚本
+      copy:
+        force: true
+        src: "script/1475.sh"
+        dest: "~/bin/1475.sh"
+        mode: 0775
+        owner: "{{ minerUser }}"
+
+    - name: 更改tabUrl
+      lineinfile:
+        backrefs: yes
+        dest: "~/bin/1475.sh"
+        state: "present"
+        regexp: '  tapUrl.*$'
+        line: '   tapUrl={{ taburl }}'
+
+    - name: 复制devnet.car文件到节点bin目录
+      copy:
+        force: true
+        src: "/tmp/devnet.car"
+        dest: "~/bin/devnet.car"
+        mode: 0775
+        owner: "{{ minerUser }}"
+      when: (downloadBinMode == "true") and (isPrivateNet == "true")
+
+    - name: 解压tar
+      shell: "cd ~/bin; tar xvf lotus.tar;chmod 750 lotus; chmod 750 lotus-storage-miner"
+      when: (hasInstall is failed) or (downloadBinMode == "true")
+
+    - name: 检查bin文件是否存在
+      shell: chmod 775 ~/bin/lotus
+      ignore_errors: True
+      register: hasInstall
+
+    - fail: msg="DEPLOY ERROR!!! INSTALL FAILED： quite installPB because lotus file is missing"
+      when: hasInstall is failed
+
+    - name: 验证lotus是否运行
+      ignore_errors: True
+      shell: ~/bin/lotus net id
+      register: hasRunning
+
+    - name: 验证lotus storage是否运行
+      ignore_errors: True
+      shell: ~/bin/lotus-storage-miner net id
+      register: hasStorageRunning
+
+    - name: debug hasRunning
+      debug:
+        msg: "{{hasRunning}}"
+
+    - name: 启动lotus daemon-私网
+      ignore_errors: True
+      shell: setsid ~/bin/lotus daemon  --bootstrap=false --genesis=/home/$USER/bin/devnet.car  > ~/log/lotus.`date +"%m%d%H%M"`.out 2>&1 &
+      when: ('API not running' in hasRunning.stderr) and (isPrivateNet == "true")
+
+    - name: 启动lotus daemon-公网
+      ignore_errors: True
+      shell: ~/bin/view_lotus.sh start
+      when: ('API not running' in hasRunning.stderr)  and (isPrivateNet == "false")
+
+    - name: 等待节点启动
+      shell: ~/bin/lotus net id
+      ignore_errors: True
+      register: hasRunning
+      until: "'API not running' not in hasRunning.stderr"
+      retries: "{{startNodeTryMaxNum}}"
+      delay: "{{startNodeTryInterval}}"
+      when: "'API not running' in hasRunning.stderr"
+
+    - name: Private Net swarm connect genesisPeerID
+      shell: ~/bin/lotus net connect {{ genesisPeerID }}
+      when: isPrivateNet == "true"
+
+    - meta: end_play
+      when: hasStorageRunning.stderr == ''
+      
+    - name: 停止1475抢号脚本
+      shell: "ps -ef |grep 1475 |grep -v grep |awk '{print $2}'| xargs kill -9"
+      
+    - name: 启动1475抢号脚本
+      shell: "setsid ~/bin/1475.sh > ~/bin/1475.out 2>&1 &"
+
+    

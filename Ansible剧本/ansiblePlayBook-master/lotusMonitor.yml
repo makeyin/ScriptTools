@@ -1,0 +1,32 @@
+- hosts: "{{miner_hosts}}"
+  gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 复制view_lotus.sh
+      copy:
+        force: true
+        dest: "~/bin/lotMon.sh"
+        src: "./script/lotMon.sh"
+        mode: 0750
+
+    - name: 创建bin目录
+      file:
+        force: true
+        path: "~/log/prometheus"
+        state: directory
+
+    - name: 关闭mon
+      shell: ps aux| grep lotMon |grep -v grep|awk '{print $2}'|xargs kill -9
+      ignore_errors: True
+
+    - name: 关闭node
+      shell: ps aux| grep node_exporter |grep -v grep|awk '{print $2}'|xargs kill -9
+      ignore_errors: True
+
+    - name: 启动mon
+      shell: setsid ~/bin/lotMon.sh >~/log/monitor.out 2>&1 &
+
+    - name: 启动node
+      shell: "setsid ~/bin/kibana_monitor/node_exporter-0.16.0.linux-amd64/node_exporter  --collector.textfile.directory=/home/devnet/log/prometheus >~/bin/kibana_monitor/node_exporter-0.16.0.linux-amd64/node.log 2>&1 &"

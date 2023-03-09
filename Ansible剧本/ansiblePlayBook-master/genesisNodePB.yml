@@ -1,0 +1,99 @@
+# ansible-playbook genesisNodePB.yml -i lo_host -e @baseDeployConf.yml
+# private.lotus.genesis.tar 下载地址 http://file.valuechain.group/private.lotus.genesis.tar?OSSAccessKeyId=LTAI4Fn4zCozDjaJL3eJ6Vja&Expires=1576120138&Signature=pkEerDJLEM8Qwte1j6dOPxX0TDw%3D
+---  
+- hosts: genesis
+  gather_facts: no
+  #strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 复制view_lotus.sh
+      copy:
+        force: true
+        dest: "~/bin/view_lotus.sh"
+        src: "script/view_lotus.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: "删除旧的bin文件和文件夹"
+      ignore_errors: True
+      shell: ~/bin/view_lotus.sh stopall; ~/bin/view_lotus.sh cleanEnv; ~/bin/view_lotus.sh cleanBin; rm -f ~/bin/devnet.car; rm -f ~/bin/wallet.key; rm -f ~/bin/lotus.genesis.tar;
+
+    - name: "下载tar文件"
+      get_url:
+        url: "{{ downloadGenesisBinUrl }}"
+        dest: "~/bin/lotus.tar"
+
+    - name: 下载Genesis文件
+      shell: curl "{{ downloadGenesisFileUrl }}" --output ~/bin/lotus.genesis.tar
+      # get_url:
+      #   url: "{{ downloadGenesisFileUrl }}"
+      #   dest: "~/bin/lotus.genesis.tar"
+
+    - name: "解压tar"
+      shell: "cd ~/bin; tar xvf lotus.tar;tar xvf lotus.genesis.tar;chmod 750 lotus; chmod 750 lotus-storage-miner"
+
+    - name: 启动节点
+      shell: setsid ~/bin/lotus daemon --genesis=/home/$USER/bin/devnet.car  > ~/log/lotus.`date +"%m%d%H%M"`.out 2>&1 &
+
+    - name: 等待节点启动完成
+      shell: ~/bin/lotus net id
+      ignore_errors: True
+      register: hasRunning
+      until:  "'API not running' not in hasRunning.stderr"
+      retries: "{{startNodeTryMaxNum}}"
+      delay: "{{startNodeTryInterval}}"
+
+    - name: 导入钱包地址
+      shell: cat /home/$USER/bin/wallet.key | ~/bin/lotus wallet import
+      register: importWalletRes
+
+    - name: debug importWalletRes
+      debug:
+        msg: "{{importWalletRes}}"
+
+    - fail: msg="DEPLOY GENESIS NODE ERROR!!! INSTALL FAILED： quite installPB because lotus file is missing"
+      when: "'successfully' not in importWalletRes.stdout"
+
+    - name: 将钱包地址设置为默认钱包
+      shell: ~/bin/lotus wallet list |xargs -L1  ~/bin/lotus wallet set-default
+
+    - name: 初始化创世节点
+      shell: ~/bin/lotus-storage-miner init --genesis-miner --actor=t0101
+
+    - name: 启动storage节点
+      shell: ~/bin/view_lotus.sh mining
+
+    - name: 等待storage节点启动完成
+      shell: ~/bin/lotus-storage-miner net id
+      ignore_errors: True
+      register: hasStorageRunning
+      until: "'API not running' not in hasStorageRunning.stderr"
+      retries: "{{startNodeTryMaxNum}}"
+      delay: "{{startNodeTryInterval}}"
+
+    - name: 获取peer ID
+      shell: ~/bin/lotus net listen | grep ip4|grep -v "127.0.0.1" | head -1
+      register: Peer_ID
+
+    - name: 获取storage peer ID
+      shell:  ~/bin/lotus-storage-miner net listen | grep ip4|grep -v "127.0.0.1" | head -1
+      register: Storage_Peer_ID
+
+    - name: 更新swarmConnect
+      lineinfile:
+        backrefs: yes
+        dest: "./baseDeployConf.yml"
+        state: "present"
+        regexp: '^genesisPeerID: '
+        line: 'genesisPeerID: "{{Peer_ID.stdout}}"'
+      connection: local
+
+    - name: 更新swarmConnect
+      lineinfile:
+        backrefs: yes
+        dest: "./baseDeployConf.yml"
+        state: "present"
+        regexp: '^genesisStoragePeerID: '
+        line: 'genesisStoragePeerID: "{{Storage_Peer_ID.stdout}}"'
+      connection: local
