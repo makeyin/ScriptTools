@@ -1,0 +1,87 @@
+测试机器性能流程
+
+cat /proc/cpuinfo    查看cpu信息
+cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l    查看CPU个数
+cat /proc/cpuinfo| grep "cpu cores"  | wc -l            查看CPU核数
+cat /proc/cpuinfo| grep "processor"| wc -l        查看逻辑cpu个数
+cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c  查看CPU型号
+cat /proc/version   查看系统内核版本
+free -h 查看内存
+
+把账号设置nologin，创建账号
+ueradd 账号
+vim /etc/passwd
+账号：/sbin/nologin 
+
+测试硬盘读写速度
+进入硬盘挂载目录
+time sudo dd if=/dev/zero of=test.out bs=1G count=100 oflag=direct
+
+关闭swap
+swapoff -a
+
+以 : 为分隔，显示/etc/passwd中第3个字段大于999的行的第1个字段
+awk -F':' '$3>999 {print $1}' /etc/passwd
+
+更改ubuntuIP
+vim  /etc/netplan/50-cloud-init.yaml    
+network:
+    version: 2
+    renderer: networkd
+    ethernets:
+       eno1:
+        addresses:[10.10.10.202/24]
+        gateway4: 192.168.100.1
+        nameservers:
+        addresses: [114.114.114.114,8.8.8.8]
+# en01为网卡名称，分别设置地址，掩码在后面加即可，网关，DNS服务器
+# 立即生效
+  netplan apply
+#注意：需要注释配置文件/etc/netplan/01-network-manager-all.yaml的一行才能使用netplan apply生效
+  renderer: NetworkManager
+
+# 批量删除docker
+docker rm -f $(docker ps -aq)
+
+
+#######################################################################################################
+测试机器流程
+# 设置账号，不让root登录，登录时间不能超过30分钟
+# 关闭swap
+# 修改时区
+# 安装插件：kuda，opencl，
+
+# 寻找最大磁盘 $disk
+ fdisk -l
+ # 格式化硬盘
+ mkfs.ext4  $disk
+ # 创建挂载目录
+ mkdir /tank1
+ # 挂载磁盘
+ mount $disk /tank1
+ # 永久挂载
+ echo -e "UUID=.. /tank1  ext4 defaults 0 0" >>　/etc/fstab
+ # 创建测试目录： $dir1
+ mkdir /tank1/$dir1
+ # 检查环境：
+   ip:
+   cpu: 型号，个数
+   mem:
+   Gpu：
+   最大分区：  
+   磁盘 io
+   磁盘阵列：
+ # 创建参数目录： 
+ mkdir /tank1/filecoin-proof-parameters -p
+ ln -s /tank1/filecoin-proof-parameters /var/tmp/
+ chmod -R 777 /tank1/filecoin-proof-parameters/
+ # 下载 super_seal bin:
+ # 下载执行脚本：  
+ # 配置脚本参数，启动脚本
+ # 观察日志： 
+    AMD 6-10H 
+    intel:  25-40h
+ # 统计算力：vl infos
+
+
+ nvidia-smi -L

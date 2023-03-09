@@ -1,0 +1,10 @@
+k8s
+
+查看问题
+kubectl get node --show-labels|grep xjcc-172-16-5-108
+kubectl get pod -A -o wide|grep t01475self31
+kubectl -n t01475self31-xjcc-amd-500 describe pod  lotus-zq6pg
+
+
+查看已打的标签
+kubectl get node --show-labels=true

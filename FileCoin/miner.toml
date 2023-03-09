@@ -1,0 +1,85 @@
+# Default config:
+[API]
+  ListenAddress = "/ip4/172.26.8.147/tcp/2345/http"
+  RemoteListenAddress = "172.26.8.147:2345"
+#  Timeout = "30s"
+#
+[Backup]
+#  DisableMetadataLog = false
+#
+[Libp2p]
+#  ListenAddresses = ["/ip4/0.0.0.0/tcp/0", "/ip6/::/tcp/0"]
+#  AnnounceAddresses = []
+#  NoAnnounceAddresses = []
+  ConnMgrLow = 150
+  ConnMgrHigh = 180
+  ConnMgrGrace = "20s"
+#
+[Pubsub]
+  Bootstrapper = false
+#  RemoteTracer = "/dns4/pubsub-tracer.filecoin.io/tcp/4001/p2p/QmTd6UvR47vUidRNZ1ZKXHrAFhqTJAD27rKL9XYghEKgKX"
+#
+[Dealmaking]
+#  ConsiderOnlineStorageDeals = true
+#  ConsiderOfflineStorageDeals = true
+#  ConsiderOnlineRetrievalDeals = true
+#  ConsiderOfflineRetrievalDeals = true
+#  ConsiderVerifiedStorageDeals = true
+#  ConsiderUnverifiedStorageDeals = true
+#  PieceCidBlocklist = []
+#  ExpectedSealDuration = "24h0m0s"
+#  PublishMsgPeriod = "1h0m0s"
+#  MaxDealsPerPublishMsg = 8
+#  MaxProviderCollateralMultiplier = 2
+#  Filter = ""
+#  RetrievalFilter = ""
+#
+[Sealing]
+#  MaxWaitDealsSectors = 2
+#  MaxSealingSectors = 0
+#  MaxSealingSectorsForDeals = 0
+#  WaitDealsDelay = "6h0m0s"
+#  AlwaysKeepUnsealedCopy = true
+#  FinalizeEarly = false
+#  BatchPreCommits = true
+#  MaxPreCommitBatch = 256
+#  MinPreCommitBatch = 1
+#  PreCommitBatchWait = "24h0m0s"
+#  PreCommitBatchSlack = "3h0m0s"
+#  AggregateCommits = true
+#  MinCommitBatch = 4
+#  MaxCommitBatch = 819
+#  CommitBatchWait = "24h0m0s"
+#  CommitBatchSlack = "1h0m0s"
+#  TerminateBatchMax = 100
+#  TerminateBatchMin = 1
+#  TerminateBatchWait = "5m0s"
+#
+[Storage]
+#  ParallelFetchLimit = 10
+#  AllowAddPiece = true
+#  AllowPreCommit1 = true
+#  AllowPreCommit2 = true
+#  AllowCommit = true
+#  AllowUnseal = true
+#
+[Fees]
+#  MaxPreCommitGasFee = "0.025 FIL"
+#  MaxCommitGasFee = "0.05 FIL"
+#  MaxTerminateGasFee = "0.5 FIL"
+#  MaxWindowPoStGasFee = "5 FIL"
+#  MaxPublishDealsFee = "0.05 FIL"
+#  MaxMarketBalanceAddFee = "0.007 FIL"
+#  [Fees.MaxPreCommitBatchGasFee]
+#    Base = "0.025 FIL"
+#    PerSector = "0.025 FIL"
+#  [Fees.MaxCommitBatchGasFee]
+#    Base = "0.05 FIL"
+#    PerSector = "0.05 FIL"
+#
+[Addresses]
+  PreCommitControl = ["t3tako7y6koj6qymq5pmoxixxnx4js4wkaxcznuz2p3eats4ssx65b2yorevcfxrp2dtpo2lkqmm6a4gugkoua"]
+  CommitControl = ["t3xfv72fzwuyi6yszcucwb3n354blv2bk7ggfanxmvc4v5hfknmcevpjngkwj2rt6rdivfllszvfov2nmcwaiq"]
+#  DisableOwnerFallback = false
+#  DisableWorkerFallback = false
+#

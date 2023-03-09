@@ -1,0 +1,79 @@
+master初始化
+
+apt-get install gdisk -y
+
+part=$(fdisk -l | grep "`fdisk -l | grep TiB |grep -v nvme| awk '{print $3}'|sort -rn|head -n1` TiB"|awk '{print $2}'|awk -F':' '{print $1}')
+df -h|grep /tank1 || gdisk $part << EOF
+n
+
+
+
+
+w
+Y
+EOF
+
+mkfs.ext4 $part
+
+ls /tank1||mkdir /tank1 \
+&& blkid "$part"| awk '{print $2}' \
+&& uuid=$(blkid "$part"| awk '{print $2}') \
+&& grep 'tank1' /etc/fstab ||echo "$uuid /tank1 ext4 defaults 0 0" >>/etc/fstab \
+&& mount -a
+
+swapoff -a && sed -i '/swap/d' /etc/fstab
+
+apt install ntpdate -y \
+&& echo "00 */10 * * * /usr/sbin/ntpdate pool.ntp.org" |crontab
+
+check=$(grep "655360" /etc/security/limits.conf);if [[ "$check" == "" ]] ; then sudo sh -c "echo '* soft nofile 327680' >> /etc/security/limits.conf" && sudo sh -c "echo '* hard nofile 655360' >> /etc/security/limits.conf" ; fi
+
+result=$(grep "ulimit" /etc/profile); if [[ "$result" == "" ]] ; then sudo sh -c "echo 'ulimit -n 655350' >> /etc/profile"; fi
+
+grep "ulimit -n" /etc/profile ||echo 'ulimit -n 655350' >> /etc/profile
+
+
+useradd devnet -m -d /tank1/devnet \
+&& grep devnet /etc/sudoers || echo 'devnet ALL=(ALL) NOPASSWD: ALL' >>/etc/sudoers \
+&& ls /tank1/devnet/.ssh/ || sudo -u devnet mkdir /tank1/devnet/.ssh \
+&& sudo -u devnet mkdir /tank1/devnet/{bin,log} \
+&& grep vl /tank1/devnet/.bashrc || echo 'alias vl="~/bin/view_lotus.sh"'> /tank1/devnet/.bashrc
+
+
+apt install mesa-opencl-icd ocl-icd-opencl-dev -y \
+&& grep "nvidia" /etc/apt/sources.list||echo "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/ /" >>/etc/apt/sources.list \
+&& apt-get install -y gnupg2 \
+&& apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub \
+&& apt update -y \
+&& apt-get -y install cuda-cudart-10.1
+
+lspci |grep 'controller: NVIDIA' && apt install nvidia-driver-435 -y
+
+useradd shiyi -m -d /tank1/shiyi \
+&& grep shiyi /etc/sudoers || echo 'shiyi ALL=(ALL) NOPASSWD: ALL' >>/etc/sudoers \
+&& ls /tank1/shiyi/.ssh/ || sudo -u shiyi mkdir /tank1/shiyi/.ssh
+
+
+mv ~/shiyi_authorized_keys /tank1/shiyi/.ssh/authorized_keys \
+&& chown -R shiyi.shiyi /tank1/shiyi/.ssh \
+&& chmod 700 /tank1/shiyi/.ssh/ ; chmod 600 /tank1/shiyi/.ssh/authorized_keys \
+&& mv ~/devnet_authorized_keys /tank1/devnet/.ssh/authorized_keys \
+&& chown -R devnet.devnet /tank1/devnet/.ssh \
+&& chmod 700 /tank1/devnet/.ssh/ ; chmod 600 /tank1/devnet/.ssh/authorized_keys \
+&& mv view_lotus.sh /tank1/devnet/bin/ \
+&& chmod 777 /tank1/devnet/bin/view_lotus.sh
+
+
+ls /tank1/filecoin-proof-parameters || mkdir /tank1/filecoin-proof-parameters \
+&& ln -s /tank1/filecoin-proof-parameters /var/tmp/ \
+&& chmod -R 777 /tank1/filecoin-proof-parameters
+
+
+
+
+su - devnet
+bash
+
+cd bin \
+&& wget -O bin.tar 'http://file.valuechain.group/master-v27.lotus%2Clotus-miner%2Clotus-slave-miner%2Clotus-poster.testnet2020-08-0616.tar?Expires=1597308280&OSSAccessKeyId=LTAI4Fn4zCozDjaJL3eJ6Vja&Signature=VyjUILTkYtWrIiU51D3I%2B6QZjmA%3D' \
+&& tar xvf bin.tar && nohup ./lotus fetch-params  32GiB &

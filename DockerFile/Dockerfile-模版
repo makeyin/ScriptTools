@@ -1,0 +1,42 @@
+# 构建: docker build -t bxk/ubuntu:16.04 .
+
+# 指定基础镜像
+FROM ubuntu:20.04
+# FROM bxk/ubuntu:16.04
+ENV PKG_CONFIG_ALLOW_CROSS=1
+# 指定镜像的工作目录
+#WORKDIR /workspace
+
+# 把文件复制到镜像
+ADD massa  ~/
+
+# 运行指定的命令
+RUN ["apt-get", "update"]
+RUN ["apt-get", "install", "git", "curl", "wget", "pkg-config", "gcc", "build-essential", "libssl-dev","-y"]
+
+# 安装 python 子模块
+#RUN git clone --branch testnet https://github.com/massalabs/massa.git
+RUN rustup toolchain install nightly
+RUN rustup default nightly
+
+# RUN ["pip", "install", "numpy", "tensorflow"]
+RUN ["pip", "install", "graphviz"]
+
+# 配置 zsh
+RUN ["sh", "-c", "\"$(curl -fsSL https://raw.github.com/robbyrussell/oh-my-zsh/master/tools/install.sh)\"", "-y"]
+# 设置主题: vim ~/.zshrc 改主题名: ZSH_THEME="pygmalion"
+
+# 配置自定义环境
+# vim ~/.zshrc 最底下加一行: source /workspace/env/docker-ubuntu-env.sh
+
+# 容器启动时执行的命令
+CMD ["/bin/zsh"]
+
+# 指定标签
+LABEL name="ubuntu:16.04" version="1.0" 
+
+# 设置环境变量
+ENV TEST_DOCKER_FILE="test Dockerfile"
+
+# 暴露镜像端口
+EXPOSE 8080

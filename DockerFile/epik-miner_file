@@ -1,0 +1,20 @@
+FROM ubuntu:18.04
+WORKDIR /root/bin/ 
+ENV FULLNODE_API_INFO=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJyZWFkIiwid3JpdGUiLCJzaWduIiwiYWRtaW4iXX0.ng0zymrG8IHWaXtUc7t5yliEnAf6BS1GSHhP5KgBymE:/ip4/180.119.121.229/tcp/1234/http
+ENV IPFS_GATEWAY=https://proof-parameters.s3.cn-south-1.jdcloud-oss.com/ipfs/
+ENV GOPROXY=https://goproxy.cn
+#cp /usr/share/zoneinfo/PRC ./
+ADD PRC /etc/localtime
+RUN echo 'Asia/Shanghai' >/etc/timezone
+COPY epik-miner .
+COPY miner_start.sh .
+RUN apt update -y
+RUN  apt-get install iproute2 libhwloc-dev -y
+RUN mkdir /root/.epikminer
+ENTRYPOINT ["/root/bin/miner_start.sh"]
+
+
+
+#docker run --name=miner1 -itd -v /var/tmp:/var/tmp  -v /epik/miner01/:/root/.epikminer/ -p 655:2458 epik-miner:2.1
+
+

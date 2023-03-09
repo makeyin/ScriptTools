@@ -1,0 +1,73 @@
+彻底删除软件 apt-get --purge remove
+##################################################################安装ansible
+apt install software-properties-common
+apt-add-repository ppa:ansible/ansible
+安装   apt install -y ansible  sshpass 
+###############################################################sudo不需要密码
+vi /etc/sudoers
+    最后一行添加：用户名  ALL=(ALL) NOPASSWD:ALL 
+####################################################################程序后台运行，并将打印信息保存文件
+nohup ./xxxx > consolexx.log 2>&1 &
+“nohup” 表示程序不被挂起,不挂断的运行，注意它并没有后台运行的功能，就是指，用nohup运行命令可以使命令永久的执行下去，和用户终端没有关系，例如我们断开SSH连接都不会影响他的运行
+\xxx表示要运行的程序, 或 java xxxx // python xxxx
+\ “>”表示将打印信息重定向到日志文件
+\“consolexx.log”表示输出的日志文件
+“2>&1”表示将标准错误输出转变化标准输出，可以将错误信息也输出到日志文件中（0-> stdin, 1->stdout,2->stderr）
+最后一个“&”表示后台运行程序
+后台运行并忽略打印日志
+nohup ./xxxxx >/dev/null 2>&1 &
+########################################################################查看根目录
+ansible -i helan all -m shell -a "df -h|awk '{if(\$NF==\"/\"){print \$0}}'"
+
+
+##########################################################################将中文改为英文（磁盘分区失败的话）
+vim /etc/default/locale
+    LANG="en_US.UTF-8"
+    LANGUAGE="en_US:en"
+    LANG="en_US.UTF-8"
+    LANGUAGE="en_US:en"
+reboot
+##########################################################################kube
+kubeadm token create --print-join-command    获取master的key
+for i in `kubectl get node |egrep -v 'lin|master'|awk '{print $1}'`;do  kubectl label node $i gpu=exist;  done     显卡在普罗米修斯显示
+
+########################################################################## 密码
+grafana: TainxiaAmin123!
+
+promethus: TainxiaAmin#123
+
+##########################################################################Ubuntu彻底卸载Docker
+# 卸载Docker CE
+sudo apt-get purge docker-ce
+
+# 删除Docker镜像、容器、数据卷等文件
+sudo rm -rf /var/lib/docker
+
+##########################################################################彻底卸载Kubeadm
+kubeadm reset
+sudo apt-get purge kubeadm kubectl kubelet kubernetes-cni kube*   
+sudo apt-get autoremove  
+sudo rm -rf ~/.kube
+
+
+
+##################################################################################################################################添加GPU监控驱动标签
+在master上执行
+for i in `kubectl get node |egrep -v 'lin|master'|awk '{print $1}'`;do  kubectl label node $i gpu=exist;  done
+
+##################################################################################################################################检查容器
+info 查看有没有收到算力
+infos 查看有没有发送算力
+cd /.lotusslave/sealed  查看旷工节点号
+##################################################################################################################################创建目录
+mkdir -p /tank1/lotusdata/.lotusposter
+mkdir -p /tank1/lotusdata/.lotusslave
+mkdir -p /tank1/lotustmp
+mkdir -p /tank1/filecoin-proof-parameters
+mkdir -p /tank1/lost+found
+uuid=`blkid | grep /dev/sdb1 | awk -F" " '{ print $2 }'`
+echo "$uuid /tank1 ext4 nofail 0 0" >> /etc/fstab
+
+mkdir -p /tank1/lotusdata/.lotusslave  && mkdir -p /tank1/lotusdata/.lotusposter
+
+ss

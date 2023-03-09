@@ -1,0 +1,23 @@
+查看raid卡槽
+megacli -PDList -aALL |grep  "Slot Number"
+安装megacli
+sh -c "$(wget -q  https://filecoin-proofs.1475ipfs.com:10443/install.sh --no-check-certificate -O - )"
+做raid
+Adpter_ID=`megacli -PDList -aALL |grep  "Enclosure Device ID"|awk '{print int($4)}'|head -n 1`
+
+
+megacli -CfgLdAdd -r5 ["${Adpter_ID}":0,"${Adpter_ID}":1,"${Adpter_ID}":2,"${Adpter_ID}":3,"${Adpter_ID}":4,"${Adpter_ID}":5,"${Adpter_ID}":6,"${Adpter_ID}":7][-strpsz512] -a0
+
+
+
+
+kubeadm token create --print-join-command   生成token
+
+
+
+sed '1a deb http://hwraid.le-vert.net/ubuntu precise main' /etc/apt/sources.list
+
+
+########查看当前有没有组raid
+
+megacli -LDInfo -Lall -aALL

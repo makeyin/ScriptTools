@@ -1,0 +1,9 @@
+chainId: 1
+
+scan:
+  jsonRpc:
+    url: https://cloudflare-eth.com/
+
+trace:
+  jsonRpc:
+    url: https://cloudflare-eth.com/

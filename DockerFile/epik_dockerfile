@@ -1,0 +1,15 @@
+FROM ubuntu:18.04
+WORKDIR /root/bin/
+ENV IPFS_GATEWAY=https://proof-parameters.s3.cn-south-1.jdcloud-oss.com/ipfs/
+ENV GOPROXY=https://goproxy.cn
+COPY epik .
+RUN apt update -y
+RUN  apt-get install libhwloc-dev -y
+ENV TimeZone=Asia/Shanghai   
+RUN ln -snf /usr/share/zoneinfo/$TimeZone /etc/localtime && echo $TimeZone > /etc/timezone   
+RUN mkdir /root/.epik
+ENTRYPOINT ["/root/bin/epik"]
+
+
+#启动命令
+#docker run --name=epik -itd -v /var/tmp:/var/tmp  -v /nvme_data/epik/miner11/:/root/.epikminer/   epik-miner:1.0 init

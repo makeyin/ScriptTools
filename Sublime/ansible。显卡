@@ -1,0 +1,49 @@
+ansible。显卡
+
+查看显卡个数：nvidia-smi -L
+
+ ansible  -i root112  all -m   shell  -a "apt-get update"  --sudo
+
+ansible  -i root112  all -m   shell  -a "apt install nvidia-driver-440  -y"  --sudo
+
+ ansible  -i ss  all -m   shell  -a "lspci | grep -i vga | grep -i nvidia"  --sudo
+
+ ansible本机复制到其他
+ ansible -i ss all -m copy -a "src=/tank1/filecoin-proof-parameters/tree_d_34359738368.tar.gz  dest=/tank1/filecoin-proof-parameters/"  -b
+ansible -i all all -m shell  -a "nohup tar xvf /tank1/filecoin-proof-parameters/tree_d_34359738368.tar.gz -C  /tank1/filecoin-proof-parameters/  &"  -b
+ansible -i all  all -m copy -a "src=/root/me.sh  dest=/home/"  -b
+ansible -i all  all -m shell -a "chmod +x /home/me.sh"  -b
+
+执行脚本需要权限执行这一条
+ansible -i 3B all -m shell -a "sudo /home/xjcc/me.sh"  -b --become-method=su -K
+
+查看有没有组raid
+ansible -i 222 all -m shell -a "megacli -LDInfo -Lall -aALL | grep State" --become
+
+
+
+
+
+
+ansible  -i wtuserroot2  all -m   shell  -a "docker rm -f $(docker ps -a)"  --sudo
+
+内核
+modprobe ipmi_si
+modprobe ipmi_devintf
+echo ipmi_si >> /etc/modprobe
+echo ipmi_devintf >> /etc/modprobe
+然后安装ipmitool：
+
+apt-get install ipmitool
+
+彻底删除软件
+apt-get --purge remove ansible
+
+
+显卡驱动有问题可以安装：apt install -y linux-headers-5.4.0-40-generic  
+
+查看显卡驱动所使用的内核版本：cat /proc/driver/nvidia/version
+
+装显卡型号
+ubuntu18.4 装435
+ubuntu20 装 440
