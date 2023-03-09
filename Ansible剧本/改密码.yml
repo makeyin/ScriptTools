@@ -1,0 +1,16 @@
+- hosts: all
+  gather_facts: no
+  strategy: free
+  become_user: root
+  become: yes
+  tasks:
+    - name: change root pw
+      become_user: root
+      become: yes
+      user: name={{ item.name }} password={{ item.chpass | password_hash('sha512') }}  update_password=always
+      with_items:
+           - { name: 'nl', chpass: 'Azpool123!' }
+      register: modifypasswd
+    - name: debug modifypasswd
+      debug:
+        msg: "{{modifypasswd}}"

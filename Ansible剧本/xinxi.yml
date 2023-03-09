@@ -1,0 +1,39 @@
+---
+- hosts: all
+  gather_facts: no
+#  remote_user: root
+  become_user: root
+  become: yes
+  strategy: free
+  tasks:
+    - name: 收集钱包地址
+      shell: free -h |grep "Mem:" |awk '{print $2}'
+      register: FREE
+
+    - name: 记录slave的CPU个数
+      shell: cat /proc/cpuinfo | grep "physical id" | sort -u | wc -l
+      register: CPUgeshu
+
+    - name: 记录slave的CPU核心数量
+      shell: grep 'core id' /proc/cpuinfo | sort -u | wc -l
+      register: CPUhexin
+
+    - name: 记录slave的CPU型号
+      shell: lscpu|grep "Model name:"  | awk '{print $3,$4,$5,$6}'
+      register: CPUxinghao
+
+    - name: 记录slave的CPU线程数
+      shell: grep 'processor' /proc/cpuinfo | sort -u | wc -l
+      register: CPUxianchegn
+
+    - name: 记录slave的CPU线程数
+      shell: lscpu | grep "per core" | awk '{print $NF}'
+      register: info
+
+
+
+
+    - name: 生成PeerID结果文件到中控机
+      shell: echo {{ inventory_hostname }}  {{ FREE.stdout }}  {{ CPUgeshu.stdout }} {{ CPUhexin.stdout }}  {{ CPUxinghao.stdout }}  {{ CPUxianchegn.stdout }}  {{ info.stdout }}   >> CPUinfo.txt
+      connection: local
+      register: slaveid

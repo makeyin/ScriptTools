@@ -1,0 +1,21 @@
+- hosts: "all"
+  gather_facts: no
+  strategy: free
+  become_user: root
+  become: yes
+  tasks:
+    - name: del
+      become_user: root
+      become: yes
+      shell: "{{item}}"
+      with_items:
+        - "sed -i 's#/tank1/user0:/usr/sbin/nologin#/tank1/user0:/bin/bash#g' /etc/passwd"
+        - "sed -i 's#/tank1/user1:/usr/sbin/nologin#/tank1/user1:/bin/bash#g' /etc/passwd"
+        - "sed -i 's#/tank1/user2:/usr/sbin/nologin#/tank1/user2:/bin/bash#g' /etc/passwd"
+        - "sed -i 's#/tank1/user3:/usr/sbin/nologin#/tank1/user3:/bin/bash#g' /etc/passwd"
+        - "sed -i 's#/tank1/user4:/usr/sbin/nologin#/tank1/user4:/bin/bash#g' /etc/passwd"
+        - "sed -i 's#/tank1/user5:/usr/sbin/nologin#/tank1/user5:/bin/bash#g' /etc/passwd"
+        - "sed -i 's#/tank1/user6:/usr/sbin/nologin#/tank1/user6:/bin/bash#g' /etc/passwd"
+        - "sed -i 's#/tank1/user7:/usr/sbin/nologin#/tank1/user7:/bin/bash#g' /etc/passwd"
+
+

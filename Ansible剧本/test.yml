@@ -1,0 +1,17 @@
+---
+- hosts: all
+  gather_facts: no
+#  remote_user: root
+  become_user: root
+  become: yes
+  strategy: free
+  tasks:
+    - name: 生成钱包地址
+      shell: WALLET=`grep "cannot continue until there is sufficient ETH" /root/bee-start-info.log |awk -F 'on' '{print $3}' |awk '{print $1}'|awk -F '"' '{print $1}'|uniq `
+      register: FREE
+
+
+    - name: 生成结果文件到中控机
+      shell: echo {{ inventory_hostname }}  {{ FREE.stdout }}    >> walletinfo.txt
+      connection: local
+      register: slaveid

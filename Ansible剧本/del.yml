@@ -1,0 +1,16 @@
+- hosts: "all"
+  gather_facts: no
+  strategy: free
+  become_user: root
+  become: yes
+  tasks:
+    - name: del
+      become_user: root 
+      become: yes
+      shell: "{{item}}"
+      with_items: 
+        - "rm -rf /tank1/lotusdata/.lotusposter/*"
+        - "rm -rf /tank1/lotusdata/.lotusslave/*"
+        - "rm -rf /tank1/lotusdata0820"
+        - "rm -rf /tank1/lotusdatabk"
+        - "rm -rf /tank1/lotusdatabk3"

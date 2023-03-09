@@ -1,0 +1,15 @@
+#下载lvm2
+---
+- hosts: "{{my}}"
+  become: yes
+  become_user: root
+  tasks:
+  - name: command1
+    shell: lvextend -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv  （根据当前根目录更换盘符）
+  - name: command2
+    shell: resize2fs -p /dev/mapper/ubuntu--vg-ubuntu--lv
+  - name: 查看磁盘
+    shell: df -lhT
+    register: DISK
+  - name: 打印
+    debug: var=DISK.stdout_lines
