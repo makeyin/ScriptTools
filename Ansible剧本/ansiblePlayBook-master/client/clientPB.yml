@@ -1,0 +1,54 @@
+### ansible-playbook clientPB.yml -i $hostfile -e "minerUser=devnet miner_hosts=wx hostfile=$hostfile" -f 30
+### clientParam: "--mostSenderTimes=5 --Max_Sender_Num=100 --blockLaggingThreshhold=10"
+### --mostSenderTimes=5,  if the miner is most thirsty, will use 5 clients to send power to the miner
+### --blockLaggingThreshhold=10, allow the miner block height lagging behind 10 blocks
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: 创建clientData目录
+      file:
+        path: "~/clientData" 
+        state: directory
+    - name: 创建clientLog目录
+      file:
+        path: "~/clientLog"
+        state: directory
+    - name: "删除旧的minerMonitor文件"
+      file:
+        force: true
+        path: ~/clientData/minerMonitor.txt
+        state: absent
+    - name: "删除旧的client_host文件"
+      file:
+        force: true
+        path: ~/clientData/client_host
+        state: absent
+
+- hosts: "{{miner_hosts}}:!chainSource"
+  #gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  roles:
+  - {role: "monitor" }
+
+  tasks:
+    - name: "生成monitor结果文件到中控机"
+      shell: "echo {{ inventory_hostname }},{{ MinerStatus.stdout }} >> ~/clientData/minerMonitor.txt"
+      connection: local
+
+- hosts: localhost
+  gather_facts: no
+  vars:
+  - useFixClientMode: "false"
+  - clientParam: "--mostSenderTimes=5 --Max_Sender_Num=100 --blockLaggingThreshhold=10"
+  - hostfile: "/home/ansible/ansiblePlayBook/client/hosts"
+  tasks:
+    - name: "动态生成sender recipient mapping关系"
+      #shell: "python ./roles/clientStrategy/files/dynamicClient.py {{clientParam}} > ~/clientLog/dynamicClient.log"
+      shell: "python ./roles/clientStrategy/files/autoClient.py {{clientParam}} --hostfile={{ hostfile }} >> ~/clientLog/dynamicClient.log"
+      when: useFixClientMode == "false"
+
+    - name: "固定生成sender recipient mapping关系"
+      shell: "python ./roles/clientStrategy/files/equalClient.py {{clientParam}} > ~/clientLog/equalClient.log"
+      when: useFixClientMode == "true"

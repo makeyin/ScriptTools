@@ -1,0 +1,19 @@
+---
+- name: 创建clientData目录
+  file:
+    path: "~/clientData" 
+    state: directory
+
+- name: 复制dataMonitor.sh
+  copy:
+    force: true
+    dest: "~/bin/dataMonitor.sh"
+    src: "dataMonitor.sh"
+    mode: 0750
+    owner: "{{ minerUser }}"
+
+- name: 采集miner信息
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  shell: "sh ~/bin/dataMonitor.sh {{ minerUser }}"
+  register: MinerStatus

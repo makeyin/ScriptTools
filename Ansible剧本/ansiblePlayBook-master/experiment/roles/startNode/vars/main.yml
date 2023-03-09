@@ -1,0 +1,6 @@
+---
+# cleanStartNodeMode means the first step is to clean the old process
+# if set to False, it will not affect go-filecoin daemon if the daemon is alive
+killDaemonMode: true
+startNodeTryMaxNum: 90
+startNodeTryInterval: 30

@@ -1,0 +1,16 @@
+### ansible-playbook startClientDaemon.yml -i ../miner/hosts -e "minerUser=devnet miner_hosts=all hostfile=../miner/hosts"
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+  - hostfile: "/home/ansible/ansiblePlayBook/miner/hosts"
+  tasks:
+    - name: 确认hostfile是否存在
+      shell: ls {{hostfile}}
+
+    - name: kill old run_client进程
+      ignore_errors: True
+      shell: "kill -9 `ps -ef | grep run_client.sh | grep -v grep | awk '{print $2}'`"
+
+    - name: 执行run_client.sh脚本
+      shell: "chmod 0775 /home/ansible/ansiblePlayBook/client/run_client.sh; setsid /home/ansible/ansiblePlayBook/client/run_client.sh {{ minerUser }} {{ miner_hosts }} {{ hostfile }} > ~/clientLog/clientDaemon.log 2>&1  &"

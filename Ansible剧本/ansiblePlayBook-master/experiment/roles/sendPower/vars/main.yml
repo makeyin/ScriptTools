@@ -1,0 +1,5 @@
+---
+# cleanGuardMode means the first step is to clean the old process
+# if set to False, it will not affect if the process is alive
+askId: "0"
+powerFileName: "power_256MB"

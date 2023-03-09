@@ -1,0 +1,56 @@
+---  
+- hosts: client
+  gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  vars:
+  - askId: 0
+  - powerFileName: power_256MB
+  - procNum: 1
+  - maxPowerNum: 100
+  tasks:
+    - name: 复制startSendPower.sh
+      copy:
+        force: true
+        dest: "~/bin/startSendPower.sh"
+        src: "roles/sendPower/files/startSendPower.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 复制autoDeal250MB.sh
+      copy:
+        force: true
+        dest: "~/bin/autoDeal250MB.sh"
+        src: "roles/sendPower/files/autoDeal250MB.sh"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    # - name: 复制senderRecipientMapping.txt
+    #   ignore_errors: True
+    #   copy:
+    #     force: true
+    #     dest: "~/bin/senderRecipientMapping.txt"
+    #     src: "~/senderRecipientMapping.txt"
+    #     mode: 0750
+    #     owner: "{{ minerUser }}"
+
+    - name: debug client and recipientList
+      debug:
+        msg: "Cliet is {{inventory_hostname}}, recipientList is {{recipientList}}"
+
+    - name: 关闭存在的filGuard程序
+      remote_user: "{{ minerUser }}"
+      become_user: "{{ minerUser }}"
+      ignore_errors: True
+      shell: "kill -9 `ps -u {{ minerUser }} -f | grep autoDeal250MB.sh | grep -v grep | awk '{print $2}'`"
+
+    - name: 执行Send Power脚本
+      remote_user: "{{ minerUser }}"
+      become_user: "{{ minerUser }}"
+      shell: "~/bin/startSendPower.sh {{ recipientList }} {{ minerUser }} {{maxPowerNum}} {{procNum}} {{powerFileName}} {{askId}} {{nickname}}"
+      #shell: "~/bin/startSendPower.sh {{ minerUser }} {{ recipientList }} 0 {{nickname}}"
+      # with_items: 
+      #   - { minerId: 't2yman2qyzozsrimwpxc3v4byrn4pvugidzrovw3a', askId: 0}
+      #   - { minerId: 't2q2k2og4uhadrjbdxbdp3cpidvxm3d4yeqsv4uua', askId: 0}
+      #   - { minerId: 't2uufesgnaixhrz7wran2gzvsjchqtos2fnlevzyq', askId: 0} 

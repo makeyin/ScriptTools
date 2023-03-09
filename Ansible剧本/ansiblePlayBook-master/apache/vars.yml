@@ -1,0 +1,3 @@
+apache_listen_port: 56780
+apache_vhosts:
+  - {servername: "file.valuechain.com", documentroot: "/var/www/html"}

@@ -1,0 +1,20 @@
+- name: copy agent.py
+  copy: src=../../../common/agent.py dest=/root/ mode=755
+  become: yes
+  become_user: root
+
+- name: 添加定时任务
+  cron:
+    name: "{{ item.cron_name }}"
+    user: root
+    minute: "{{ item.cron_minute }}"
+    job: "{{ item.cron_job }}"
+    state: present
+  with_items:
+    - { cron_name: 'ntp1', cron_minute: '*/5', cron_job: '/usr/sbin/ntpdate ntp2.aliyun.com >>/root/ntp.log' }
+    - { cron_name: 'ntp2', cron_minute: '10', cron_job: '/usr/sbin/ntpdate ntp1.aliyun.com >>/root/ntp.log' }
+    - { cron_name: 'ntp3', cron_minute: '20', cron_job: '/usr/sbin/ntpdate ntp3.aliyun.com >>/root/ntp.log' }
+    - { cron_name: 'ntp4', cron_minute: '30', cron_job: '/usr/sbin/ntpdate ntp4.aliyun.com >>/root/ntp.log' }
+    - { cron_name: 'ntp5', cron_minute: '40', cron_job: '/usr/sbin/ntpdate ntp5.aliyun.com >>/root/ntp.log' }
+    - { cron_name: 'ntp6', cron_minute: '50', cron_job: '/usr/sbin/ntpdate ntp6.aliyun.com >>/root/ntp.log' }
+    - { cron_name: 'agent.py', cron_minute: '*/10', cron_job: 'python3 /root/agent.py >> /var/log/agent.log' }

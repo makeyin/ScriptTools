@@ -1,0 +1,86 @@
+---
+- name: 关闭存在的filGuard程序
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  ignore_errors: True
+  shell: "kill -9 `ps -u {{ minerUser }} -f | grep filGuard.sh | grep -v grep | awk '{print $2}'`"
+  when: killDaemonMode == "true"
+
+- name: 关闭go-filecoin daemon程序
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  ignore_errors: True
+  shell: "kill -9 `cat ~/bin/PID.NODE`; kill -9 `ps -u {{ minerUser }} -f | grep go-filecoin | grep -v grep | awk '{print $2}'`"
+  when: killDaemonMode == "true"
+
+# - name: 检测是否有go-filecoin daemon程序运行
+#   remote_user: "{{ minerUser }}"
+#   become_user: "{{ minerUser }}"
+#   shell: "ps -ef | grep go-filecoin | grep -v grep"
+#   register: testProcessRunning
+
+# - name: 输出
+#   debug:
+#     msg: "{{testProcessRunning.stdout}}"
+
+- name: 验证go-filecoin是否运行
+  ignore_errors: True
+  shell: "~/bin/go-filecoin id --repodir=~/.filecoin"
+  register: hasRunning
+
+- name: "复制启动脚本"
+  remote_user: "{{ minerUser }}"
+  copy:
+    force: true
+    dest: "~/bin/startNode.sh"
+    src: "startNode.sh"
+    mode: 0750
+    owner: "{{ minerUser }}"
+  when: hasRunning is failed
+
+- name: "启动节点"
+  ignore_errors: True
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  shell: "~/bin/startNode.sh"
+  when: hasRunning is failed
+  register: checkDaemonResult
+
+- name: 输出startNode.sh的result
+  debug:
+    msg: "{{checkDaemonResult}}"
+
+- fail: msg="DEPLOY ERROR!!! DAEMON IS NOT RUNNING： quit startNodePB because {{ checkDaemonResult.stdout }}!!!"
+  when: checkDaemonResult is failed 
+
+#- name: "尝试异常恢复: 重新初始化和启动"
+#  shell: "~/bin/go-filecoin init {{ initPara }}; ~/bin/startNode.sh"
+#  when: "'failed to read API file' in checkDaemonResult.stderr"
+
+- name: "等待节点启动"
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  shell: "~/bin/go-filecoin id"
+  ignore_errors: True
+  register: hasReRunning
+  until: hasReRunning is succeeded
+  retries: "{{startNodeTryMaxNum}}"
+  delay: "{{startNodeTryInterval}}"
+  when: hasRunning is failed
+
+- fail: msg="DEPLOY ERROR!!! DAEMON IS NOT RUNNING： quit startNodePB because the daemon is not running!!!"
+  when: hasReRunning is defined and hasReRunning is failed
+
+- name: "检查swarm peers"
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  shell: "~/bin/go-filecoin swarm peers | wc -l"
+  ignore_errors: True
+  register: swarmPeersNumber
+
+- name: "debug swarmPeers number"
+  debug:
+    msg: "swarm peers number is {{ swarmPeersNumber }}"
+
+# - fail: msg="DEPLOY ERROR!!! DAEMON IS NOT RUNNING： quit startNodePB because swarmPeersNumber is {{ swarmPeersNumber.stdout }}!!!"
+#   when: swarmPeersNumber.stdout == "0"

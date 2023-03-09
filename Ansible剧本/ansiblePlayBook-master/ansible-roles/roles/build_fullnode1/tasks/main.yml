@@ -1,0 +1,74 @@
+- name: 新建钱包
+  shell: ~/bin/lotus wallet new bls;~/bin/lotus wallet new bls;~/bin/lotus wallet new bls;~/bin/lotus wallet new bls
+  when: host == "fullnode1" 
+
+- name: 获取钱包key
+  shell: ~/bin/lotus wallet export `~/bin/lotus wallet list | grep -v Address | awk -v i=1 'NR==i{print $1}'`
+  register: wallet1
+  when: host == "fullnode1" 
+
+- name: 获取钱包key
+  shell: ~/bin/lotus wallet export `~/bin/lotus wallet list | grep -v Address | awk -v i=2 'NR==i{print $1}'`
+  register: wallet2
+  when: host == "fullnode1" 
+
+- name: 获取钱包key
+  shell: ~/bin/lotus wallet export `~/bin/lotus wallet list | grep -v Address | awk -v i=3 'NR==i{print $1}'`
+  register: wallet3
+  when: host == "fullnode1" 
+
+- name: 获取钱���key
+  shell: ~/bin/lotus wallet export `~/bin/lotus wallet list | grep -v Address | awk -v i=4 'NR==i{print $1}'`
+  register: wallet4
+  when: host == "fullnode1" 
+
+- name: 获取钱包key
+  shell: ~/bin/lotus wallet export `~/bin/lotus wallet list | grep -v Address | awk -v i=5 'NR==i{print $1}'`
+  register: wallet5
+  when: host == "fullnode1" 
+
+- name: 获取fullnode1连接串
+  shell: ~/bin/lotus auth api-info --perm admin|awk -F "=" '{print $2}'
+  register: fullnode1_link
+  when: host == "fullnode1"
+
+- name: 写入变量文件
+  remote_user: "{{ sourceUser }}"
+  become: yes
+  become_user: "{{ sourceUser }}"
+  shell: "echo fullnode1_link: {{ fullnode1_link.stdout }} > /home/ansible/ansiblePlayBook/work_everyday/jenkins/build_master/group_vars/build_vars.yml"
+  ignore_errors: True
+  delegate_to: "{{ source }}"
+  when: host == "fullnode1"
+
+- name: 写入变量文件
+  remote_user: "{{ sourceUser }}"
+  ignore_errors: True
+  become: yes
+  become_user: "{{ sourceUser }}"
+  shell: "echo {{ item.export }}: {{ item.wallet }} >> /home/ansible/ansiblePlayBook/work_everyday/jenkins/build_master/group_vars/build_vars.yml"
+  with_items:
+    - {export: "wallet1_export" , wallet: "{{ wallet1.stdout }}" }
+    - {export: "wallet2_export" , wallet: "{{ wallet2.stdout }}" }
+    - {export: "wallet3_export" , wallet: "{{ wallet3.stdout }}" }
+    - {export: "wallet4_export" , wallet: "{{ wallet4.stdout }}" }
+    - {export: "wallet5_export" , wallet: "{{ wallet5.stdout }}" }
+  delegate_to: "{{ source }}"
+
+- name: owner钱包地址
+  shell: ~/bin/lotus wallet list | grep -v Address | awk -v i=1 'NR==i{print $1}'
+  register: owner_wallet
+  when: host == "fullnode1" 
+
+- name: FullNode1钱包地址
+  shell: ~/bin/lotus wallet list
+  register: fullnode1_wallet
+  when: host == 'fullnode1' 
+
+- name: FullNode1钱包地址
+  debug: var=fullnode1_wallet.stdout verbosity=0
+  when: host == 'fullnode1'
+
+- name: 待转账的 Owner 钱包地址
+  debug: var=owner_wallet.stdout verbosity=0
+  when: host == 'fullnode1' 

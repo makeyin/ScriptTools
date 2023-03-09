@@ -1,0 +1,30 @@
+---
+- hosts: "{{miner_hosts}}:!chainSource"
+  #gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  roles:
+  ###### 下载指定version可执行文件 初始化节点 修改端口 ######
+  - {role: "install"} 
+
+  ###### 安装在已经运行过的矿机上 需要copy chain ######
+  ###### 命令：ansible-playbook copyChainPB.yml -i hosts -e "@baseDeployConf.json"
+- hosts: chainSource
+  gather_facts: no
+  roles:
+  - {role: "sourceChainBackup", when: needCopyChain is defined and needCopyChain == "true"}
+
+- hosts: "{{miner_hosts}}:!chainSource"
+  gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  roles:
+  - {role: "targetCopyChain", targetUser: "{{ minerUser }}", when: needCopyChain is defined and needCopyChain == "true"}
+  ###### 启动go-filecoin daemon ######
+  - {role: "startNode" }
+  ###### 启动挖矿 ######
+  - {role: "createMiner" }
+  - {role: "guard" }
+  - {role: "dataCollector" }

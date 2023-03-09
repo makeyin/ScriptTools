@@ -1,0 +1,106 @@
+# Default config:
+GenesisTimestamp = 0
+
+[API]
+  ListenAddress = "/ip4/10.10.8.201/tcp/2234/http"
+  RemoteListenAddress = "10.10.8.201:2234"
+  Timeout = "30s"
+
+[Libp2p]
+  ListenPort = 6666
+  AnnounceAddresses = []
+  NoAnnounceAddresses = []
+  BootstrapPeers = []
+  ProtectedPeers = []
+  ConnMgrLow = 150
+  ConnMgrHigh = 2048
+  ConnMgrGrace = "20s"
+
+[Relation]
+  GroupName = "f0111007-window-winning"
+  EnableDtUseHttp = true
+  EnableOnlyStoreClusterPoSt = false
+  FullNodeToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJyZWFkIiwid3JpdGUiLCJzaWduIiwiYWRtaW4iXX0.3KQBQPMDApKu2_TrYq3dLYonxW2Sf44fbQ6NC3m2Wag:/ip4/10.10.8.235/tcp/1234/http"
+  WinningNodeToken = ""
+  WindowNodeToken = ""
+  WindowNodeTokenExt1 = ""
+  WindowMoreNodeToken = ""
+  WindowMoreNodeTokenExt1 = ""
+  OSPNodeToken = ""
+
+[Pubsub]
+  Bootstrapper = false
+  RemoteTracer = ""
+
+[BackUp]
+  BathPath = "/tank1/badger_bak"
+  Prefix = "7c89a79a-391e-4506-9ce0-ae153597de2e"
+  Interval = "30m"
+  MaxBackups = 7
+
+[Addresses]
+
+[RemoteRPC]
+  Enable = false
+  APIMa = ""
+  Token = ""
+
+[Fees]
+  MaxPreCommitGasFee = "0.1 FIL"
+  MaxCommitGasFee = "0.1 FIL"
+  MaxWindowPoStGasFee = "0.1 FIL"
+  MaxPublishDealsFee = "0.1 FIL"
+  MaxMarketBalanceAddFee = "0.1 FIL"
+
+[Window]
+  SleepForWindowStart = 20
+  BeforeClose = 6
+  DelaySubmit = 0
+  SkipNumerator = 3
+  SkipDenominator = 10
+  IsOspSnark = false
+  OspPeers = []
+  CommonCheckEpoch = 6
+  WdCheckEpoch = 16
+  IsSpecifyControl = true
+  SpecifyAddr = "f0111416"
+
+[PartitionSpecify]
+  Partitions = []
+
+[ClusterPeers]
+  Enable = true
+  ClusterPeers = ["12D3KooWPP19XCqEnY67ncMd7ir3S64Heprkvs5muP4eEUABND2g"]
+
+[Fault]
+  FaultCheckEpoch = 10
+  FaultRetryTimes = 5
+  FaultRetryTimeinterval = 5
+
+[Skip]
+  SkipCheckEpoch = 6
+  SkipRetryTimes = 3
+  SkipRetryTimeinterval = 5
+
+[WdSep]
+  Enable = true
+  Width = 2000
+
+[ProxyPoSt]
+  SelfPoster = ""
+  MasterRetryTimes = 3
+  MasterRetryTimeinterval = 5
+
+[DataReport]
+  Enable = false
+  DomainPro = "https://server-owner.1475ipfs.com/pool/acceptPostParam"
+  DomainTest = "https://server-owner-test.1475ipfs.com/pool/acceptPostParam"
+  BlockInterval = 95
+
+[Storage]
+  ParallelFetchLimit = 0
+  AllowAddPiece = false
+  AllowPreCommit1 = true
+  AllowPreCommit2 = true
+  AllowCommit = true
+  AllowUnseal = false

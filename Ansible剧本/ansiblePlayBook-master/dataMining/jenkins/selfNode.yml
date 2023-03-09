@@ -1,0 +1,26 @@
+#### 查看公网节点的挖矿状态
+#### ansible-playbook miningStatusOnChain.yml -i cz_host -e "minerUser=devnet"
+---
+- hosts: all
+  gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 复制
+      copy:
+        force: true
+        dest: "~/log"
+        src: "selfNode.py"
+        mode: 0775
+        group: filecoin
+
+    - name: 生成monitor结果文件到中控机
+      shell: cd log; python3  selfNode.py  --startTime "{{ startTime }}"  --endTime "{{endTime}}"
+      register: info
+
+    - name: 打印检测结果
+      debug:
+        msg:
+          - "信息: "
+          - "{{info.stdout_lines}}"

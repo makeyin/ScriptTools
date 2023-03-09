@@ -1,0 +1,55 @@
+- name: window1加入集群
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ; export TRUST_PARAMS=1;~/bin/lotus-window init --actor {{ minerID }} > ~/masterinit.log
+  register: window1_result
+  when: host == "window1"
+
+- name: poster加入集群
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ; export TRUST_PARAMS=1;~/bin/lotus-poster init --actor {{ minerID }} > ~/posterinit.log
+  when: host == "window1"
+
+- name: window重启
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ; ~/bin/view_lotus.sh window
+  when: host == "window1"
+
+- name: poster重启
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ; ~/bin/view_lotus.sh poster
+  when: host == "window1"
+
+- name: window1_link
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ; ~/bin/lotus-window auth api-info --perm admin |awk -F "=" '{print $2}'
+  register: window1_link
+  when: host == "window1"
+
+- name: window1-peersID
+  shell: ~/bin/view_lotus.sh id |grep lotus-window -A 1|awk "NR==2{print}"
+  register: window1_peersID
+  when: host == "window1"
+
+- name: window1-posterID
+  shell: ~/bin/view_lotus.sh id |grep lotus-poster -A 1|awk "NR==2{print}"|awk -F "/" '{print $7}'
+  register: window1_posterID
+  when: host == "window1"
+
+- name: 下载存储集群文件到本地
+  shell: wget -O ~/.lotusposter/{{ item.file }} http://10.10.8.107/get/script_file/{{ item.poster_file }}
+  with_items:
+    - { poster_file: "poster_group_2_c.toml", file: "c.toml" }
+    - { poster_file: "poster_group_2_s.json", file: "s.json" }
+  when: host == "window1"
+
+- name: 写入变量文件
+  remote_user: "{{ sourceUser }}"
+  ignore_errors: True
+  become: yes
+  become_user: "{{ sourceUser }}"
+  shell: "echo {{ item.export}}: {{ item.wallet }} >> /home/ansible/ansiblePlayBook/work_everyday/jenkins/build_master/group_vars/build_vars.yml"
+  with_items:
+    - {export: "window1_peersID" , wallet: "{{ window1_peersID.stdout }}" }
+    - {export: "window1_posterID" , wallet: "{{ window1_posterID.stdout }}" }
+    - {export: "window1_link" , wallet: "{{ window1_link.stdout }}" }
+  delegate_to: "{{ source }}"
+  when: host == "window1"
+
+- name: window1加入集群返回值
+  debug: var=window1_result.stdout
+  when: host == "window1"

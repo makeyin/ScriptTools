@@ -1,0 +1,131 @@
+---
+- name: 关闭存在的filGuard程序
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  ignore_errors: True
+  shell: "kill -9 `ps -u {{ minerUser }} -f | grep filGuard.sh | grep -v grep | awk '{print $2}'`"
+  when: forceCleanFilecoinFolder == "true"
+
+- name: "强制清理 .filecoin 文件夹且kill daemon进程"
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  ignore_errors: True
+  shell: "mv ~/.filecoin ~/{{ backFilcoinFolderName }};mv ~/.filecoin_sectors ~/{{ backFilcoinSectors }};kill -9 `ps -u {{ minerUser }} -f | grep go-filecoin | grep -v grep | awk '{print $2}'`"
+  when: forceCleanFilecoinFolder == "true"
+
+- name: "创建bin目录"
+  file:
+    force: true
+    path: "~/bin"
+    state: directory
+
+- name: "创建log目录"
+  file:
+    force: true
+    path: "~/log"
+    state: directory
+
+- name: "删除旧的bin文件"
+  ignore_errors: True
+  file:
+    force: true
+    path: "~/bin/go-filecoin"
+    state: absent
+  when: forceDownLoadNewBin == "true"
+
+- name: "验证bin文件是否存在"
+  shell: "chmod 775 ~/bin/go-filecoin"
+  ignore_errors: True
+  register: hasInstall
+
+- name: "下载执行文件"
+  ignore_errors: True
+  get_url:
+    url: "{{ download_url }}"
+    dest: "~/bin/go-filecoin"
+    mode: 0775
+  when: (hasInstall is failed) or (forceDownLoadNewBin == "true")
+
+- name: "再次验证bin文件是否存在"
+  shell: "chmod 775 ~/bin/go-filecoin"
+  ignore_errors: True
+  register: hasInstall
+
+- name: "再次尝试下载执行文件"
+  get_url:
+    url: "{{ download_url }}"
+    dest: "~/bin/go-filecoin"
+    mode: 0775
+    timeout: 300
+  when: hasInstall is failed
+
+- name: "检测go-filecoin bin文件是否正常"
+  ignore_errors: True
+  shell: "~/bin/go-filecoin id"
+  register: checkBinResult
+
+- fail: msg="DEPLOY ERROR!!! INSTALL FAILED： quite installPB because bin file has Segmentation fault"
+  when: "'Segmentation' in checkBinResult.stderr"
+
+- name: "验证是否初始化"
+  shell: "chmod 775 ~/.filecoin"
+  ignore_errors: True
+  register: hasInit
+
+- name: "初始化"
+  shell: "~/bin/go-filecoin init {{ initPara }}"
+  when: hasInit is failed
+
+- name: "更新端口 345{{portIndex}}"
+  lineinfile:
+    backrefs: yes
+    dest: "~/.filecoin/config.json"
+    state: "present"
+    regexp: '"address": "/ip4/127.0.0.1/tcp/3453",'
+    line: '                "address": "/ip4/127.0.0.1/tcp/345{{portIndex}}",'
+  when: hasInit is failed
+
+- name: "更新端口 600{{portIndex}}"
+  lineinfile:
+    backrefs: yes
+    dest: "~/.filecoin/config.json"
+    state: "present"
+    regexp: '"address": "/ip4/0.0.0.0/tcp/6000"'
+    line: '                "address": "/ip4/0.0.0.0/tcp/600{{portIndex}}"'
+  when: hasInit is failed
+
+- name: "更新端口808{{portIndex}}"
+  lineinfile:
+    backrefs: yes
+    dest: "~/.filecoin/config.json"
+    state: "present"
+    regexp: '"http://localhost:8080",'
+    line: '                "http://localhost:808{{portIndex}}",'
+  when: hasInit is failed
+
+- name: "更新端口 808{{portIndex}}"
+  lineinfile:
+    backrefs: yes
+    dest: "~/.filecoin/config.json"
+    state: "present"
+    regexp: '"https://localhost:8080",'
+    line: '                "https://localhost:808{{portIndex}}",'
+  when: hasInit is failed
+
+- name: "更新端口 808{{portIndex}}"
+  lineinfile:
+    backrefs: yes
+    dest: "~/.filecoin/config.json"
+    state: "present"
+    regexp: '"https://127.0.0.1:8080",'
+    line: '                "https://127.0.0.1:808{{portIndex}}",'
+  when: hasInit is failed
+
+- name: "更新端口 808{{portIndex}}"
+  lineinfile:
+    backrefs: yes
+    dest: "~/.filecoin/config.json"
+    state: "present"
+    regexp: '"http://127.0.0.1:8080",'
+    line: '            "http://127.0.0.1:808{{portIndex}}",'
+  when: hasInit is failed

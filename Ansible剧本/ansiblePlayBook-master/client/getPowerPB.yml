@@ -1,0 +1,42 @@
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: 创建clientData目录
+      file:
+        path: "~/clientData" 
+        state: directory
+    - name: 创建clientData目录
+      file:
+        path: "~/clientLog"
+        state: directory
+    - name: "删除旧的minerAddress文件"
+      file:
+        force: true
+        path: ~/clientData/minerAddress.txt
+        state: absent
+
+- hosts: "{{miner_hosts}}:!chainSource"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: "获取minerAddress"
+      shell: "~/bin/go-filecoin config mining | jq '.minerAddress' | sed 's/\"//g'"
+      register: IP_MINING
+
+    - name: debug IP_MINING
+      debug:
+        msg: "{{inventory_hostname}},{{ IP_MINING.stdout }}"
+
+    - name: "保存minerAddress"
+      shell: "echo {{ inventory_hostname }},{{ IP_MINING.stdout }} >> ~/clientData/minerAddress.txt"
+      connection: local
+
+
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: "生成power.txt"
+      ignore_errors: True
+      shell: "python ./roles/getPower/files/getPower.py {{minerUser}} > ~/clientLog/getPower.log"

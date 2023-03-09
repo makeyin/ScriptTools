@@ -1,0 +1,34 @@
+- hosts: {{ all }}
+  become: yes
+  become_user: root
+  gather_facts: no
+  vars:
+    - car_host: "{{car_host}}"
+
+  tasks:
+    - name: 替换为阿里源
+      copy: src=../../../../common/sources.list dest=/etc/apt/
+
+    - name: 依赖安装
+      shell: apt-get install -y python3-pip rc jq software-properties-common mesa-opencl-icd ocl-icd-opencl-dev hwloc libhwloc-dev libmunge-dev libmunge2 munge mariadb-server libmysqlclient-dev
+      ignore_errors: True
+
+    - name: 依赖安装
+      shell: wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin
+      ignore_errors: True
+
+    - name: 依赖安装
+      shell: mkdir -p /etc/apt/preferences.d/cuda-repository-pin-600;mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600
+      ignore_errors: True
+
+    - name: 依赖安装
+      shell: apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
+      ignore_errors: True
+
+    - name: 依赖安装
+      shell: add-apt-repository "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/ /"
+      ignore_errors: True
+
+    - name: 依赖安装
+      shell: apt-get update;apt-get -y install cuda-cudart-10.1;pip3 install pymysql==0.10.1  -i https://pypi.tuna.tsinghua.edu.cn/simple/;pip3 install numpy==1.18.4  -i https://pypi.tuna.tsinghua.edu.cn/simple/;pip3 install bs4;pip3 install retrying numpy
+      ignore_errors: True

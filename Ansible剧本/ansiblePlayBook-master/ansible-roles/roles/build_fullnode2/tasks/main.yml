@@ -1,0 +1,67 @@
+- name: fullnode2读取变量
+  shell: "echo {{ item.wallet }} > ~/{{ item.num }}"
+  with_items:
+    - { wallet: "{{ wallet1_export }}", num: "1" }
+    - { wallet: "{{ wallet2_export }}", num: "2" }
+    - { wallet: "{{ wallet3_export }}", num: "3" }
+    - { wallet: "{{ wallet4_export }}", num: "4" }
+    - { wallet: "{{ wallet5_export }}", num: "5" }
+  when: host == "fullnode2"
+
+- name: fullnode2导入钱包地址
+  shell: ~/bin/lotus wallet export ~/{{item.wallet_loca}}
+  with_items:
+    - wallet_loca: "1"
+    - wallet_loca: "2"
+    - wallet_loca: "3"
+    - wallet_loca: "4"
+    - wallet_loca: "5"
+  when: host == "fullnode2"
+
+- name: 删除钱包地址
+  shell: rm -r ~/{{item.wallet_loca}}
+  with_items:
+    - wallet_loca: "1"
+    - wallet_loca: "2"
+    - wallet_loca: "3"
+    - wallet_loca: "4"
+    - wallet_loca: "5"
+  when: host == "fullnode2"
+
+- name: 获取fullnode2连接串
+  shell: ~/bin/lotus auth api-info --perm admin|awk -F "=" '{print $2}'
+  register: fullnode2_link
+  when: host == "fullnode2"
+
+- name: 写入变量文件
+  remote_user: "{{ sourceUser }}"
+  become: yes
+  become_user: "{{ sourceUser }}"
+  shell: "echo fullnode2_link: {{ fullnode2_link.stdout }} >> /home/ansible/ansiblePlayBook/work_everyday/jenkins/build_master/group_vars/build_vars.yml"
+  ignore_errors: True
+  delegate_to: "{{ source }}"
+  when: host == "fullnode2"
+
+- name: 下载bin
+  shell: wget -P /home/devnet/bin/ http://10.10.8.107/get/tar_file/{{bin_name}}
+  when: type == "nofullnode" and finish_miner == false
+
+- name: Bin解压
+  shell: cd ~/bin/;tar xvf {{bin_name}} -C ~/bin/
+  when: type == "nofullnode" and finish_miner == false
+
+- name: 下载参数文件
+  shell: wget -P /tank1/filecoin-proof-parameters/ http://10.10.8.107/get/tar_file/64G_pow_arg.tar
+  when: sector_size == 64 and finish_miner == false and type == "nofullnode"
+
+- name: 解压参数文件
+  shell: cd /tank1/filecoin-proof-parameters/;tar xvf 64G_pow_arg.tar -C /tank1/filecoin-proof-parameters/
+  when: sector_size == 64 and finish_miner == false and type == "nofullnode"
+
+- name: 下载参数文件
+  shell: wget -P /tank1/filecoin-proof-parameters/ http://10.10.8.107/get/tar_file/32G_pow_arg.tar
+  when: sector_size == 32 and finish_miner == false and type == "nofullnode"
+
+- name: 解压参数文件
+  shell: cd /tank1/filecoin-proof-parameters/;tar xvf 32G_pow_arg.tar -C /tank1/filecoin-proof-parameters/
+  when: sector_size == 32 and finish_miner == false and type == "nofullnode"

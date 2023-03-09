@@ -1,0 +1,57 @@
+# Default config:
+GenesisTimestamp = 0
+
+[API]
+  ListenAddress = "/ip4/127.0.0.1/tcp/4567/http"
+  RemoteListenAddress = "127.0.0.1:4567"
+  Timeout = "30s"
+
+[Libp2p]
+  ListenPort = 0
+  AnnounceAddresses = []
+  NoAnnounceAddresses = []
+  BootstrapPeers = ["/ip4/10.10.8.189/tcp/6666/p2p/12D3KooWPh46ACng9ADDFJ84EQGrYSRm2Kp6hShNygqPYMDLXBSC"]
+  ProtectedPeers = []
+  ConnMgrLow = 150
+  ConnMgrHigh = 2048
+  ConnMgrGrace = "20s"
+
+[Relation]
+  GroupName = "f01314-window-winning"
+  EnableDtUseHttp = true
+  EnableOnlyStoreClusterPoSt = false
+  FullNodeToken = ""
+  WinningNodeToken = ""
+  WindowNodeToken = ""
+  WindowNodeTokenExt1 = ""
+  WindowMoreNodeToken = ""
+  WindowMoreNodeTokenExt1 = ""
+  OSPNodeToken = ""
+
+[Pubsub]
+  Bootstrapper = false
+  RemoteTracer = ""
+
+[BackUp]
+  BathPath = "/tank1/badger_bak"
+  Prefix = "2e4cad71-0793-49de-bdd6-9bc84f3e4854"
+  Interval = "30m"
+  MaxBackups = 7
+
+[Storage]
+  ParallelFetchLimit = 0
+  AllowAddPiece = false
+  AllowPreCommit1 = true
+  AllowPreCommit2 = true
+  AllowCommit = true
+  AllowUnseal = false
+
+[ProxyPoSt]
+  SlaveRetryTimes = 5
+  SlaveRetryTimeinterval = 10
+
+[UploadConfig]
+  Enable = false
+  DomainPro = "https://server-owner.1475ipfs.com/pool/minerSyncSlave"
+  DomainTest = "https://server-owner-test.1475ipfs.com/pool/minerSyncSlave"
+  BlockInterval = 95

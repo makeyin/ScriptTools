@@ -1,0 +1,11 @@
+finish_miner: true
+
+minerID: 
+
+sector_size: 64
+
+bin_name: lotus_bin.tar.gz
+
+sourceUser: ansible
+
+source: 192.168.1.64

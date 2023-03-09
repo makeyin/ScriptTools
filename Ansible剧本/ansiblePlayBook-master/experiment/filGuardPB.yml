@@ -1,0 +1,8 @@
+###### 创建用户minerUser 机器授信 ######
+- hosts: "{{miner_hosts}}:!chainSource"
+#  gather_facts: no
+  strategy: free
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  roles:
+  - {role: "guard", daemon_param: "{{ daemon_param }}"}

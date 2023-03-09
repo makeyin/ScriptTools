@@ -1,0 +1,14 @@
+---
+############   uncomment the param if you want to overide it, otherwise it will use the dafault value configured in each role var file
+
+
+############   sendPower PB   ############
+minerUser: "devnet"
+miner_hosts: "all"
+
+askId: "0"
+powerFileName: "power_256MB"
+useFixClientMode: "false"
+
+#Below param is not required, it can use defaul value
+clientParam: "--mostSenderTimes=5 --Max_Sender_Num=100 --blockLaggingThreshhold=10"

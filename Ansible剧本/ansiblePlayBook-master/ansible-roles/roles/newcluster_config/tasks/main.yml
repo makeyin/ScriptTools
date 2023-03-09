@@ -1,0 +1,43 @@
+- hosts: all
+  become: yes
+  vars:
+    - IP: "{{ ansible_default_ipv4['address'] }}"
+    - minerID: "{{ miner }}"
+    - Fullnode_port: "1234"
+    - Window_port: "2234"
+    - Winning_poet: "3345"
+    - Power_port: "2345"
+    - Fullnode_GroupName: "group_name"
+
+  tasks:
+    - name: 获取FullNode1链接串
+      shell: ~/bin/lotus auth api-info --perm admin|awk -F "=" '{print $2}'
+      become_user: devnet
+      register: fullnode1_link
+      when: hosts == "fullnode1"
+    
+    - name: 获取FullNode2链接串
+      shell: ~/bin/lotus auth api-info --perm admin|awk -F "=" '{print $2}'
+      become_user: devnet
+      register: fullnode2_link
+      when: hosts == "fullnode2"
+
+    - name: 获取Window1链接串
+      shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ;~/bin/lotus-window auth api-info --perm admin;|awk -F "=" '{print $2}'
+      become_user: devnet
+      register: window1_link
+      when: hosts == "window1"
+
+    - name: 获取Window2链接串
+      shell: export FULLNODE_API_INFO\={{ fullnode2_link }} ;~/bin/lotus-window auth api-info --perm admin;|awk -F "=" '{print $2}'
+      become_user: devnet
+      register: window2_link
+      when: hosts == "window2"
+    
+    - name: 获取Winning链接串
+      shell: export FULLNODE_API_INFO\={{ fullnode2_link }} ;~/bin/lotus-winning auth api-info --perm admin;|awk -F "=" '{print $2}'
+      become_user: devnet
+      register: window2_link
+      when: hosts == "window2"
+
+    

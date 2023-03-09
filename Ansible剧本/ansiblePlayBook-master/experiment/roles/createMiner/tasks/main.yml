@@ -1,0 +1,113 @@
+- name: "验证filecoin daemon是否启动"
+  ignore_errors: True
+  shell: "~/bin/go-filecoin id --repodir=~/.filecoin"
+  register: hasDaemonRunning
+
+- fail: msg="DEPLOY ERROR!!! DAEMON IS NOT RUNNING： quit createMinerPB because the daemon is not running!!!"
+  when: hasDaemonRunning is failed
+
+- name: "设置心跳"
+  shell: "~/bin/go-filecoin config heartbeat.beatTarget {{ heartbeatUrl }}"
+  when: hasDaemonRunning
+
+- name: "设置昵称"
+  ignore_errors: True
+  shell: ~/bin/go-filecoin config heartbeat.nickname "{{nickname}}"
+  when: hasDaemonRunning
+
+- name: "设置autoSealIntervalSeconds"
+  shell: "~/bin/go-filecoin config mining.autoSealIntervalSeconds 30"
+  when: hasDaemonRunning
+
+- name: "获取钱包地址"
+  shell: ~/bin/go-filecoin config wallet.defaultAddress | sed 's/"//g'
+  register: WALLET_ADDR
+
+- name: "查看钱包余额"
+  shell: "~/bin/go-filecoin wallet balance {{ WALLET_ADDR.stdout }}"
+  register: WALLET_ADDR_BALANCE
+
+- name: "查看节点目前区块高度"
+  ignore_errors: True
+  shell: ~/bin/go-filecoin chain head --enc=json|jq -r '.[0]|."/"' |  xargs -L1 ~/bin/go-filecoin show block --enc=json | jq -r '.height'
+  register: NODE_BLOCK_HEIGHT
+
+- name: "查看主链区块高度"
+  ignore_errors: True
+  shell: curl -sSl https://prod-devnet.filecoin-stats-infra.kyokan.io/sync | jq -r '.mining.lastBlockHeight'
+  register: FILECOIN_BLOCK_HEIGHT
+
+- name: "打印node区块高度和主链区块高度"
+  ignore_errors: True
+  debug:
+    msg: "NOTICE!!! host ip {{ inventory_hostname }}, node block height {{ NODE_BLOCK_HEIGHT.stdout }}, filecoin block height {{ FILECOIN_BLOCK_HEIGHT.stdout }}"
+
+- name: "接水龙头余额"
+  shell: curl -X POST -F "target={{WALLET_ADDR.stdout}}" "{{ tapUrl }}" | cut -d" " -f4
+  register: result
+  when: WALLET_ADDR_BALANCE.stdout == "0"
+
+- name: "等待钱包获取余额"
+  shell: "~/bin/go-filecoin wallet balance {{ WALLET_ADDR.stdout }}"
+  ignore_errors: True
+  register: WALLET_ADDR_BALANCE
+  until: WALLET_ADDR_BALANCE.stdout != "0"
+  retries: "{{createMinerTryMaxNum}}"
+  delay: "{{createMinerTryInterval}}"
+
+# - name: "new一个新钱包"
+#   shell: "~/bin/go-filecoin address new"
+#   register: WALLET_ADDR_NEW
+#   when: WALLET_ADDR_BALANCE.stdout == "0"
+
+# - name: "把第二个钱包地址设置为默认钱包地址"
+#   shell: "~/bin/go-filecoin config wallet.defaultAddress {{ WALLET_ADDR_NEW.stdout }}"
+#   when: WALLET_ADDR_BALANCE.stdout == "0" and WALLET_ADDR_NEW is defined
+
+# - name: "利用第二个钱包再次接水龙头余额"
+#   shell: curl -X POST -F "target={{WALLET_ADDR_NEW.stdout}}" "{{ tapUrl }}" | cut -d" " -f4
+#   register: result
+#   when: WALLET_ADDR_BALANCE.stdout == "0" and WALLET_ADDR_NEW is defined
+
+# - name: "等待第二个钱包获取余额"
+#   shell: "~/bin/go-filecoin wallet balance {{ WALLET_ADDR_NEW.stdout }}"
+#   ignore_errors: True
+#   register: WALLET_ADDR_BALANCE
+#   until: WALLET_ADDR_BALANCE.stdout != "0"
+#   retries: "{{createMinerRetryMaxNum}}"
+#   delay: "{{createMinerRetryInterval}}"
+#   when: WALLET_ADDR_BALANCE.stdout == "0" and WALLET_ADDR_NEW is defined
+
+- fail: msg="DEPLOY ERROR!!! CREATE MINER FAILED： quite createMinerPB because wallet balance is 0"
+  when: WALLET_ADDR_BALANCE.stdout == "0"
+
+- name: "矿机地址"
+  shell: ~/bin/go-filecoin config mining.minerAddress | sed 's/"//g'
+  register: MINER_ADDRESS
+
+- name: "创建矿机"
+  shell: "~/bin/go-filecoin miner create {{pledgeSectors}} {{collateralFil}} --gas-price={{gasPrice}} --gas-limit={{gasLimit}}"
+  when: MINER_ADDRESS.stdout == 'empty'
+
+- name: "启动挖矿"
+  ignore_errors: True
+  shell: "~/bin/go-filecoin mining start"
+  when: clientDonotMining == "false"
+  register: createMinerResult
+
+- fail: msg="DEPLOY ERROR!!! DAEMON IS NOT RUNNING： quit createMinerPB because the daemon is not running!!!"
+  when: "'Is the daemon running' in createMinerResult.stderr"
+
+- name: "存储单价"
+  shell: ~/bin/go-filecoin config mining.storagePrice | sed 's/"//g'
+  register: STORAGE_PRICE
+  when: clientDonotMining == "false"
+
+- name: "设置单价"
+  shell: "~/bin/go-filecoin miner set-price 0.0000000000000001 {{expiry}} --gas-price={{gasPrice}} --gas-limit={{gasLimit}}"
+  when: STORAGE_PRICE.stdout == '0' and clientDonotMining == "false"
+
+- name: "打印deploy成功"
+  ignore_errors: True
+  debug:
+    msg: "DEPLOY SUCCESSFULLY!!!"

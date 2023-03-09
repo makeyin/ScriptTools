@@ -1,0 +1,14 @@
+---
+# - name: 关闭存在的dataCollect程序
+#   remote_user: "{{ minerUser }}"
+#   become: yes
+#   become_user: "{{ minerUser }}"
+#   ignore_errors: True
+#   shell: "kill -9 `ps -u {{ minerUser }} -f | grep dataCollect.sh | grep -v grep | awk '{print $2}'`"
+#   when: cleanDataCollectorMode == "true"
+
+# - name: 验证dataCollect是否已经在运行
+#   ignore_errors: True
+#   shell: "ps -u {{ minerUser }} -f | grep dataCollect.sh | grep -v grep | awk '{print $2}'"
+#   register: hasDataCollectRunning
+

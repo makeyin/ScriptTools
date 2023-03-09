@@ -1,0 +1,72 @@
+- name: 加入集群
+  shell: export FULLNODE_API_INFO\={{ fullnode2_link }} ; export TRUST_PARAMS=1; ~/bin/lotus-winning init --actor {{ minerID }} > ~/masterinit.log
+  register: winning_result
+  when: host == "winning"
+
+- name: poster加入集群
+  shell: export FULLNODE_API_INFO\={{ fullnode2_link }} ; export TRUST_PARAMS=1; ~/bin/lotus-poster init --actor {{ minerID }} > ~/posterinit.log
+  when: host == "winning" 
+
+- name: winning重启
+  shell: export FULLNODE_API_INFO\={{ fullnode2_link }} ; ~/bin/view_lotus.sh winning
+  when: host == "winning"
+
+- name: poster重启
+  shell: export FULLNODE_API_INFO\={{ fullnode2_link }} ;~/bin/view_lotus.sh poster
+  when: host == "winning"
+
+- name: winning_link
+  shell: export FULLNODE_API_INFO\={{ fullnode2_link }} ; ~/bin/lotus-winning auth api-info --perm admin |awk -F "=" '{print $2}'
+  register: winning_link
+  when: host == "winning"
+
+- name: winning-peersID
+  shell: ~/bin/view_lotus.sh id |grep lotus-winning -A 1|awk "NR==2{print}"
+  register: winning_peers
+  when: host == "winning"
+
+- name: winning-posterID
+  shell: ~/bin/view_lotus.sh id |grep lotus-poster -A 1|awk "NR==2{print}"|awk -F "/" '{print $7}'
+  register: winning_poster
+  when: host == "winning"
+
+- name: 下载存储集群文件到本地
+  shell: wget -O ~/.lotusposter/{{ item.file }} http://10.10.8.107/get/script_file/{{ item.poster_file }}
+  with_items:
+    - { poster_file: "poster_group_2_c.toml", file: "c.toml" }
+    - { poster_file: "poster_group_2_s.json", file: "s.json" }
+  when: host == "winning"
+
+- name: 写入变量文件
+  remote_user: "{{ sourceUser }}"
+  ignore_errors: True
+  become: yes
+  become_user: "{{ sourceUser }}"
+  shell: "echo {{ item.export}}: {{ item.wallet }} >> /home/ansible/ansiblePlayBook/work_everyday/jenkins/build_master/group_vars/build_vars.yml"
+  with_items:
+    - { export: "winning_peersID" , wallet: "{{ winning_peers.stdout }}" }
+    - { export: "winning_posterID" , wallet: "{{ winning_poster.stdout }}" }
+    - { export: "winning_link" , wallet: "{{ winning_link.stdout }}" }
+  delegate_to: "{{ source }}"
+  when: host == "winning"
+
+- name: 下载脚本文件
+  shell: wget -P ~/bin/ http://10.10.8.107/get/script_file/checkWinning_mysql.py
+  when: host == "winning"
+
+- name: 添加权限
+  shell: chmod +x ~/bin/checkWinning_mysql.py
+  when: host == "winning"
+
+- name: 添加定时任务
+  cron:
+    name: "checkWinning_mysql"
+    user: devnet
+    minute: "*/60"
+    job: "export FULLNODE_API_INFO={{ fullnode2_link }} && python3 ~/bin/checkWinning_mysql.py --hour 24 >> ~/bin/checkWinning.log"
+    state: present
+  when: host == "winning"
+
+- name: winning加入集群返回值
+  debug: var=winning_result.stdout
+  when: host == "winning"

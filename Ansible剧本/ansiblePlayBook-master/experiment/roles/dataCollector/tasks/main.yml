@@ -1,0 +1,27 @@
+---
+- name: 关闭存在的dataCollect程序
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  ignore_errors: True
+  shell: "kill -9 `ps -u {{ minerUser }} -f | grep dataCollect.sh | grep -v grep | awk '{print $2}'`;rm -rf ~/log/dataCollect.*"
+  when: cleanDataCollectorMode == "true"
+
+- name: 验证dataCollect是否已经在运行
+  ignore_errors: True
+  shell: "ps -u {{ minerUser }} -f | grep dataCollect.sh | grep -v grep | awk '{print $2}'"
+  register: hasDataCollectRunning
+
+- name: 复制dataCollect.sh
+  copy:
+    force: true
+    dest: "~/bin/dataCollect.sh"
+    src: "dataCollect.sh"
+    mode: 0750
+    owner: "{{ minerUser }}"
+  when: hasDataCollectRunning.stdout == ""
+
+- name: 启动数据采集进程
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  shell: "setsid ~/bin/dataCollect.sh > ~/log/dataCollect.out 2>&1  &"  
+  when: hasDataCollectRunning.stdout == ""

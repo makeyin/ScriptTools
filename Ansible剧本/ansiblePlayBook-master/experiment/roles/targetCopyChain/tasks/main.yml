@@ -1,0 +1,55 @@
+---
+- name: "target创建ssh密钥"
+  user:
+    name: "{{ targetUser }}"
+    generate_ssh_key: yes
+    ssh_key_bits: 2048
+    ssh_key_file: ~/.ssh/id_rsa
+
+- name: "读取源机器公钥"
+  remote_user: "{{ sourceUser }}"
+  become: yes
+  become_user: "{{ sourceUser }}"
+  shell: "cat ~/.ssh/id_rsa.pub"
+  register: ID_RSA
+  delegate_to: "{{ source }}"
+
+- name: "目标机器免授权"
+  remote_user: "{{ targetUser }}"
+  become: yes
+  become_user: "{{ targetUser }}"
+  lineinfile:
+    dest: "~/.ssh/authorized_keys"
+    create: yes
+    state: "present"
+    line: "{{ ID_RSA.stdout }}"
+
+- name: "目标机器创建临时目录~/chainData"
+  shell: "mkdir -p ~/chainData"
+
+- name: "远程复制chain"
+  remote_user: "{{ sourceUser }}"
+  become: yes
+  become_user: "{{ sourceUser }}"
+  shell: "scp -rv /tmp/filecoinChain/chain {{ targetUser }}@{{ inventory_hostname }}:~/chainData"
+  delegate_to: "{{ source }}"
+
+- name: "远程复制badger"
+  remote_user: "{{ sourceUser }}"
+  become: yes
+  become_user: "{{ sourceUser }}"
+  shell: "scp -rv /tmp/filecoinChain/badger {{ targetUser }}@{{ inventory_hostname }}:~/chainData"
+  delegate_to: "{{ source }}"
+
+- name: "target关闭go-filecoin daemon程序"
+  remote_user: "{{ targetUser }}"
+  become: yes
+  become_user: "{{ targetUser }}"
+  ignore_errors: True
+  shell: "killall -u {{ targetUser }} go-filecoin"
+
+- name: "target删除数据目录chain badger"
+  shell: "rm -rf ~/.filecoin/chain ~/.filecoin/badger"
+
+- name: "target机器复制数据目录"
+  shell: "mv -f ~/chainData/* ~/.filecoin/"

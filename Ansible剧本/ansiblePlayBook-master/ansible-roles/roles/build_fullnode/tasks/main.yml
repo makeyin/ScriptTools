@@ -1,0 +1,61 @@
+- name: 8.107导car
+  shell: nohup ~/bin/lotus chain export --skip-old-msgs --recent-stateroots=900 /tank1/data/tar_file/minimal_finality_stateroots_latest.car > car.out 2>&1 &
+  when: host == "car_host"
+
+- name: 等待导car完成
+  shell: ps -ef |grep minimal_finality_stateroots_latest.car |grep -v grep
+  register: export_car
+  until: "'minimal_finality_stateroots_latest.car' not in export_car.stdout"
+  retries: "120"
+  delay: "120"
+  ignore_errors: True
+  when: host == "car_host" and "'minimal_finality_stateroots_latest.car' in export_car.stdout"
+
+- name: 下载car
+  shell: wget -P /home/devnet/ http://10.10.8.107/get/tar_file/minimal_finality_stateroots_latest.car
+  become_user: devnet
+  when: type == "fullnode"
+
+- name: 下载bin
+  shell: wget -P /home/devnet/bin/ http://10.10.8.107/get/tar_file/{{bin_name}}
+  become_user: devnet
+  when: type == "fullnode"
+
+- name: Bin解压
+  shell: cd /home/devnet/bin/;tar xvf {{bin_name}} -C /home/devnet/bin/
+  when: type == "fullnode"
+
+- name: 下载FullNode参数文件
+  shell: wget -P /tank1/filecoin-proof-parameters/ http://10.10.8.107/get/tar_file/lotus_arg.tar
+  when: type == "fullnode"
+
+- name: FullNode解压配置文件
+  shell: cd /tank1/filecoin-proof-parameters/;tar xvf lotus_arg.tar -C /tank1/filecoin-proof-parameters/
+  when: type == "fullnode"
+
+- name: 创建log文件夹
+  shell: mkdir ~/logs
+  ignore_errors: True
+  when: type == "fullnode"
+
+- name: 关闭现有lotus
+  shell: for i in `ps -ef | grep lotus | grep -v grep | awk '{print $2}'`;do kill -9 $i;done
+  when: type == "fullnode"
+
+- name: FullNode导car
+  shell: export TRUST_PARAMS=1; nohup ~/bin/lotus daemon --import-snapshot=~/minimal_finality_stateroots_latest.car > car.out 2>&1 &
+  when: type == "fullnode"
+
+- name: ���待区块同步
+  shell: ~/bin/lotus sync wait
+  ignore_errors: True
+  register: chaindone
+  until: "'Done!'  in chaindone.stdout"
+  retries: "30"
+  delay: "60"
+  when: type == "fullnode" and "'Done!' not in chaindone.stdout"
+
+- name: 终止导car，启动lotus
+  shell: for i in `ps -ef | grep lotus | grep -v grep | awk '{print $2}'`;do kill -9 $i;done;~/bin/view_lotus.sh start
+  when: type == "fullnode"
+

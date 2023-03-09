@@ -1,0 +1,171 @@
+- name: Fullnode 配置文件修改
+  lineinfile:
+    backrefs: yes
+    dest: "~/.lotus/config.toml"
+    state: "present"
+    regexp: "{{ item.regexp_line }}"
+    line: "{{ item.line_line }}"
+  with_items:
+    - { regexp_line: '  GroupName.*$' , line_line: '  GroupName = "group_name"' }
+    - { regexp_line: '  DefaultMaxFee.*$' ,  line_line: '  DefaultMaxFee = "0.7 FIL"' }
+    - { regexp_line: '  GasLimitOverestimation.*$' ,  line_line: '  GasLimitOverestimation = 1.15' }
+    - { regexp_line: '  MaxGasLimitOverestimationValue.*$' ,  line_line: '  MaxGasLimitOverestimationValue = 10000000.0' }
+    - { regexp_line: '  MinGasLimitOverestimationValu.*$' ,  line_line: '  MinGasLimitOverestimationValue = 1000000.0' }
+    - { regexp_line: '  MaxCommitCount.*$' ,  line_line: '  MaxCommitCount = 32' }
+    - { regexp_line: '  MaxPrecommitCount.*$' ,  line_line: '  MaxPrecommitCount = 64' }
+    - { regexp_line: '    FeeCapOver.*$' ,  line_line: '   FeeCapOver = 8' }
+    - { regexp_line: '    PreFeeOver.*$' ,  line_line: '    PreFeeOver = 2' }
+    - { regexp_line: '    ProvenFeeOver.*$' ,  line_line: '    ProvenFeeOver = 2' }
+    - { regexp_line: '    WDPostFeeOver.*$' ,  line_line: '    WDPostFeeOver = 3' }
+    - { regexp_line: '    DealFeeOver.*$' ,  line_line: '    DealFeeOver = 2' }
+    - { regexp_line: '    Other.*$' ,  line_line: '    Other = 2' }
+    - { regexp_line: '  IgnoreMinerCheck.*$' ,  line_line: '  IgnoreMinerCheck = ["{{ minerID }}"]' }
+  when: type == "fullnode"
+
+- name: Power配置修改
+  lineinfile:
+    backrefs: yes
+    dest: "~/.lotusminer/config.toml"
+    state: "present"
+    regexp: "{{ item.regexp_line }}"
+    line: "{{ item.line_line }}"
+  with_items:
+    - { regexp_line: '  ClientWhiteList.*$' , line_line: '  ClientWhiteList = ["{{ wallet1_loca }}"]' }
+    - { regexp_line: '  GroupName =.*$' , line_line: '  GroupName = "{{ minerID }}power"' }
+    - { regexp_line: '  FullNodeToken.*$' , line_line: '  FullNodeToken = "{{ fullnode1_link }}"' }
+    - { regexp_line: '  WinningNodeToken =.*$' , line_line: '  WinningNodeToken = "{{ winning_link }}"' }
+    - { regexp_line: '  WindowNodeToken =.*$' , line_line: '  WindowNodeToken = "{{ window1_link }}"' }
+    - { regexp_line: '  WindowMoreNodeToken =.*$' , line_line: '  WindowMoreNodeToken = "{{ window2_link }}"' }
+    - { regexp_line: '  PreCommitControl.*$' , line_line: '  PreCommitControl = ["{{ wallet5_loca }}"]' }
+    - { regexp_line: '  CommitControl.*$' , line_line: '  CommitControl = ["{{ wallet4_loca }}"]' }
+    - { regexp_line: '  MaxPreCommitGasFee.*$' , line_line: '  MaxPreCommitGasFee = "0.5 FIL"' }
+    - { regexp_line: '  MaxCommitGasFee.*$' , line_line: '  MaxCommitGasFee = "0.5 FIL"' }
+    - { regexp_line: '  MaxWindowPoStGasFee =.*$' , line_line: '  MaxWindowPoStGasFee = "0.5 FIL"' }
+    - { regexp_line: '  MaxPublishDealsFee =.*$' , line_line: '  MaxPublishDealsFee = "0.5 FIL"' }
+    - { regexp_line: '  MaxMarketBalanceAddFee =.*$' , line_line: '  MaxMarketBalanceAddFee = "0.5 FIL"' }
+    - { regexp_line: '  DealMsgMaxFee =.*$' , line_line: '  DealMsgMaxFee = "0.0171 FIL"' }
+    - { regexp_line: '  MinDealExpiration =.*$' , line_line: '  MinDealExpiration = 1440000' }
+    - { regexp_line: '  ClientFunds =.*$' , line_line: '  ClientFunds = "0.00 FIL"' }
+    - { regexp_line: '  ClientMaxFunds =.*$' , line_line: '  ClientMaxFunds = "0.0 FIL"' }
+    - { regexp_line: '  ProviderFunds =.*$' , line_line: '  ProviderFunds = "0.05 FIL"' }
+    - { regexp_line: '  ProviderMaxFunds =.*$' , line_line: '  ProviderMaxFunds = "0.3 FIL"' }
+    - { regexp_line: '  PublishingCount =.*$' , line_line: '  PublishingCount = 5' }
+    - { regexp_line: '  PublishingWaitTime =.*$' , line_line: '  PublishingWaitTime = "10m"' }
+    - { regexp_line: '  PublishingStartEpoch =.*$' , line_line: '  PublishingStartEpoch = 144000' }
+    - { regexp_line: '  LimitWaitWorkCount.*$' , line_line: '  LimitWaitWorkCount = 1' }
+    - { regexp_line: '  MaxWaitWorkCount =.*$' , line_line: '  MaxWaitWorkCount = 1' }
+    - { regexp_line: '  MinDealExpiration =.*$' , line_line: '  MinDealExpiration = 0' }
+    - { regexp_line: '  DealsInSectorLimit =.*$' , line_line: '  DealsInSectorLimit = 3' }
+    - { regexp_line: '  TicketLookBack =.*$' , line_line: '  TicketLookBack = 120' }
+    - { regexp_line: '  EnableMasterAssignSector =.*$' , line_line: '  EnableMasterAssignSector = true' }
+    - { regexp_line: '  MaxPreCommitBaseFee =.*$' , line_line: '  MaxPreCommitBaseFee = "2.5 nanoFIL"' }
+    - { regexp_line: '  PrecommitLowestMark =.*$' , line_line: '  PrecommitLowestMark = "1.8 nfil"' }
+    - { regexp_line: '  PrecommitBatchNumber =.*$' , line_line: '  PrecommitBatchNumber = 64' }
+    - { regexp_line: '  MaxCommitBaseFee =.*$' , line_line: '  MaxCommitBaseFee = "0.5 nfil"' }
+    - { regexp_line: '  CommitLowestMark =.*$' , line_line: '  CommitLowestMark = "1.8 nfil"' }
+    - { regexp_line: '  CommitBatchNumber =.*$' , line_line: '  CommitBatchNumber = 32' }
+    - { regexp_line: '  MaxPreCommitGasFee =.*$' , line_line: '  MaxPreCommitGasFee = "0.5 FIL"' }
+    - { regexp_line: '  MaxCommitGasFee =.*$' , line_line: '  MaxCommitGasFee = "0.5 FIL"' }
+    - { regexp_line: '  MaxWindowPoStGasFee =.*$' , line_line: '  MaxWindowPoStGasFee = "0.5 FIL"' }
+    - { regexp_line: '  MaxPublishDealsFee =.*$' , line_line: '  MaxPublishDealsFee = "0.5 FIL"' }
+    - { regexp_line: '  MaxMarketBalanceAddFee =.*$' , line_line: '  MaxMarketBalanceAddFee = "0.5 FIL"' }
+    - { regexp_line: '  GroupNames =.*$ ' , line_line: '  GroupNames = ["{{ minerID }}power"]' }
+    - { regexp_line: '    RsHosts =.*$' , line_line: '    RsHosts = ["http://10.10.36.80:9433", "http://10.10.36.81:9433", "http://10.10.36.82:9433", "http://10.10.36.83:9433", "http://10.10.36.84:9433", "http://10.10.36.85:9433", "http://10.10.36.86:9433", "http://10.10.36.87:9433", "http://10.10.36.88:9433", "http://10.10.36.89:9433", "http://10.10.36.90:9433", "http://10.10.36.91:9433", "http://10.10.36.92:9433", "http://10.10.36.93:9433", "http://10.10.36.94:9433", "http://10.10.36.95:9433", "http://10.10.36.96:9433", "http://10.10.36.97:9433", "http://10.10.36.98:9433", "http://10.10.36.99:9433"]' }
+    - { regexp_line: '    RsfHosts =.*$' , line_line: '   RsfHosts = ["http://10.10.36.80:5000", "http://10.10.36.81:5000", "http://10.10.36.82:5000", "http://10.10.36.83:5000", "http://10.10.36.84:5000", "http://10.10.36.85:5000", "http://10.10.36.86:5000", "http://10.10.36.87:5000","http://10.10.36.88:5000", "http://10.10.36.89:5000", "http://10.10.36.90:5000", "http://10.10.36.91:5000", "http://10.10.36.92:5000", "http://10.10.36.93:5000", "http://10.10.36.94:5000", "http://10.10.36.95:5000", "http://10.10.36.96:5000", "http://10.10.36.97:5000", "http://10.10.36.98:5000", "http://10.10.36.99:5000"]' }
+    - { regexp_line: '    UpHosts =.*$' , line_line: '    UpHosts = ["http://10.10.40.1:5010", "http://10.10.40.2:5010", "http://10.10.40.3:5010", "http://10.10.40.4:5010", "http://10.10.40.5:5010", "http://10.10.40.6:5010", "http://10.10.40.7:5010", "http://10.10.40.8:5010", "http://10.10.40.9:5010", "http://10.10.40.10:5010", "http://10.10.40.11:5010", "http://10.10.40.12:5010", "http://10.10.40.13:5010","http://10.10.40.14:5010", "http://10.10.40.15:5010", "http://10.10.40.16:5010", "http://10.10.40.17:5010","http://10.10.38.128:5010", "http://10.10.38.129:5010", "http://10.10.38.130:5010", "http://10.10.38.131:5010", "http://10.10.38.132:5010", "http://10.10.38.133:5010", "http://10.10.38.134:5010", "http://10.10.38.135:5010", "http://10.10.38.136:5010", "http://10.10.38.137:5010", "http://10.10.38.138:5010", "http://10.10.38.139:5010", "http://10.10.38.140:5010", "http://10.10.38.141:5010", "http://10.10.38.142:5010", "http://10.10.38.143:5010","http://10.10.38.144:5010", "http://10.10.38.145:5010", "http://10.10.38.146:5010", "http://10.10.38.147:5010", "http://10.10.38.148:5010", "http://10.10.38.149:5010", "http://10.10.38.150:5010", "http://10.10.38.151:5010", "http://10.10.38.152:5010", "http://10.10.38.153:5010", "http://10.10.38.154:5010", "http://10.10.38.155:5010", "http://10.10.38.156:5010", "http://10.10.38.157:5010", "http://10.10.38.158:5010", "http://10.10.38.159:5010", "http://10.10.38.160:5010", "http://10.10.38.161:5010", "http://10.10.38.162:5010", "http://10.10.38.163:5010", "http://10.10.38.164:5010", "http://10.10.38.165:5010", "http://10.10.38.166:5010", "http://10.10.38.167:5010", "http://10.10.38.168:5010", "http://10.10.38.169:5010", "http://10.10.38.170:5010", "http://10.10.38.171:5010", "http://10.10.38.172:5010", "http://10.10.38.173:5010", "http://10.10.38.174:5010", "http://10.10.38.175:5010", "http://10.10.38.176:5010", "http://10.10.38.177:5010", "http://10.10.38.178:5010", "http://10.10.38.179:5010", "http://10.10.38.180:5010", "http://10.10.38.181:5010", "http://10.10.38.182:5010"]' }
+    - { regexp_line: '    Bucket =.*$' , line_line: '     Bucket = "{{ minerID }}"' }
+    - { regexp_line: '    Ak =.*$' , line_line: '    Ak = "QaCw4a0k8dU3J3XBitzxx3teIDdQhNw_LZFslgdH"' }
+    - { regexp_line: '    Sk =.*$' , line_line: '    Sk = "NX3zEljXn_pOUYp1IR1Iz_O7RrflwwJSvPLK16B7"' }
+  when: host == "power"
+
+- name: Window1配置修改
+  lineinfile:
+    backrefs: yes
+    dest: "~/.lotuswindow/config.toml"
+    state: "present"
+    regexp: "{{ item.regexp_line }}"
+    line: "{{ item.line_line }}"
+  with_items:
+    - { regexp_line: '  GroupName.*$' , line_line: '  GroupName = "{{ minerID }}-window-winning"' }
+    - { regexp_line: '  FullNodeToken.*$' , line_line: '  FullNodeToken = "{{ fullnode1_link }}"' }
+    - { regexp_line: '  DelaySubmit.*$' , line_line: '  DelaySubmit = 0' }
+    - { regexp_line: '  SpecifyAddr.*$' , line_line: '  SpecifyAddr = "{{ control_0 }}"' }
+    - { regexp_line: '  ClusterPeers.*$' , line_line: '  ClusterPeers = ["{{ window1_posterID }}"]' }
+    - { regexp_line: '  MaxPreCommitGasFee =.*$' , line_line: '  MaxPreCommitGasFee = "0.1 FIL"' }
+    - { regexp_line: '  MaxCommitGasFee =.*$' , line_line: '  MaxCommitGasFee = "0.1 FIL"' }
+    - { regexp_line: '  MaxWindowPoStGasFee =.*$' , line_line: '  MaxWindowPoStGasFee = "0.1 FIL"' }
+    - { regexp_line: '  MaxPublishDealsFee =.*$' , line_line: '  MaxPublishDealsFee = "0.1 FIL"' }
+    - { regexp_line: '  MaxMarketBalanceAddFee =.*$' , line_line: '  MaxMarketBalanceAddFee = "0.1 FIL"' }
+  when: host == "window1"
+
+- name: Window2配置修改
+  lineinfile:
+    backrefs: yes
+    dest: "~/.lotuswindow/config.toml"
+    state: "present"
+    regexp: "{{ item.regexp_line }}"
+    line: "{{ item.line_line }}"
+  with_items:
+    - { regexp_line: '  GroupName.*$' , line_line: '  GroupName = "{{ minerID }}-window-winning"' }
+    - { regexp_line: '  FullNodeToken.*$' , line_line: '  FullNodeToken = "{{ fullnode2_link }}"' }
+    - { regexp_line: '  DelaySubmit.*$' , line_line: '  DelaySubmit = 8' }
+    - { regexp_line: '  SpecifyAddr.*$' , line_line: '  SpecifyAddr = "{{ control_1 }}"' }
+    - { regexp_line: '  ClusterPeers.*$' , line_line: '  ClusterPeers = ["{{ window2_posterID }}"]' }
+  when: host == "window2"
+
+- name: Winning配置修改
+  lineinfile:
+    backrefs: yes
+    dest: "~/.lotuswinning/config.toml"
+    state: "present"
+    regexp: "{{ item.regexp_line }}"
+    line: "{{ item.line_line }}"
+  with_items:
+    - { regexp_line: '  GroupName = .*$' , line_line: '  GroupName = "{{ minerID }}-window-winning"' }
+    - { regexp_line: '  FullNodeToken.*$' , line_line: '  FullNodeToken = "{{ fullnode2_link }}"' }
+    - { regexp_line: '    Address =.*$' , line_line: '  Address = "{{ wallet5_loca }}"' }
+    - { regexp_line: '  PreAddress.*$' , line_line: '  PreAddress = "{{ wallet4_loca }}"' }
+    - { regexp_line: '  ClusterPeers.*$' , line_line: '  ClusterPeers = ["{{ winning_posterID }}"]' }
+    - { regexp_line: '  FlexibleSleepTime =.*$' , line_line: '  FlexibleSleepTime = "22s"' }
+    - { regexp_line: '  SleepForSyncSeconds =.*$' , line_line: '  SleepForSyncSeconds = "1s"' }
+    - { regexp_line: '  VanillaTimeout =.*$' , line_line: '  VanillaTimeout = 15' }
+    - { regexp_line: '  MbiTimeout =.*$' , line_line: '  MbiTimeout = 15' }
+  when: host == "winning"
+
+- name: poster配置修改
+  lineinfile:
+    backrefs: yes
+    dest: "~/.lotusposter/{{ item.file }}"
+    state: "present"
+    regexp: "{{ item.regexp_line }}"
+    line: "{{ item.line_line }}"
+  with_items:
+    - { regexp_line: '  GroupName.*$' , line_line: '  GroupName = "{{ minerID }}-window-winning"' , file: "config.toml" }
+    - { regexp_line: 'bucket.*$' , line_line: 'bucket="{{ minerID }}"' , file: "c.toml" }
+    - { regexp_line: '    "bucket".*$' , line_line: '    "bucket": "{{ minerID }}",' , file: "s.json" }
+  when: type == "nofullnode"
+
+- name: 重启poster
+  shell: ~/bin/view_lotus.sh poster
+  ignore_errors: True
+  when: type == "nofullnode" 
+
+- name: 重启fullnode
+  shell: ~/bin/view_lotus.sh start
+  when: type == "fullnode"
+
+- name: 重启window1
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ;~/bin/view_lotus.sh window
+  when: host == "window1"
+
+- name: 重启window2
+  shell: export FULLNODE_API_INFO\={{ fullnode2_link }} ;~/bin/view_lotus.sh window
+  when: host == "window2"
+
+- name: 重启winning
+  shell: export FULLNODE_API_INFO\={{ fullnode2_link }} ;~/bin/view_lotus.sh winning
+  when: host == "winning"
+
+- name: 重启power
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ;~/bin/view_lotus.sh power
+  when: host == "power"

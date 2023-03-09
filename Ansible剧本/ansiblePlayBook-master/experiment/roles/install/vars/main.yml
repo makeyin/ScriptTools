@@ -1,0 +1,15 @@
+---
+# file: group_vars/atlanta
+#downloadBinUrl: "http://file.valuechain.group/package/0.1.4/go-filecoin"
+download_prefix: "http://file.valuechain.group/package/"
+version: "0.1.4"
+initPara: "--devnet-user --genesisfile=https://genesis.user.kittyhawk.wtf/genesis.car"
+portIndex: "4"
+forceDownLoadNewBin: "false"
+
+
+########## be careful not to set forceCleanFilecoinFolder to true ########################
+forceCleanFilecoinFolder: "false"
+backFilcoinFolderName: ".filecoin_023"
+backFilcoinSectors: ".filecoin_sectors_023"
+##########################################################################################

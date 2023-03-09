@@ -1,0 +1,12 @@
+[build]
+10.10.8.0     host=fullnode1   ansible_user=devnet     type=fullnode
+10.10.8.0     host=fullnode2   ansible_user=devnet     type=fullnode
+10.10.8.0     host=window1     ansible_user=devnet     type=nofullnode
+10.10.8.0     host=window2     ansible_user=devnet     type=nofullnode
+10.10.8.0     host=winning     ansible_user=devnet     type=nofullnode
+10.10.8.0     host=power       ansible_user=devnet     type=nofullnode
+
+10.10.8.107    host=car_host    ansible_user=devnet     type=car_host
+
+[all:vars]
+ansible_ssh_port=45823

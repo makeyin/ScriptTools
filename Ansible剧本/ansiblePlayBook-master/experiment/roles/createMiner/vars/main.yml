@@ -1,0 +1,16 @@
+---
+tapUrl: "http://user.kittyhawk.wtf:9797/tap"
+heartbeatUrl: "/dns4/stats-infra.kittyhawk.wtf/tcp/8080/ipfs/QmUWmZnpZb6xFryNDeNU7KcJ1Af5oHy7fB9npU67sseEjR"
+gasPrice: "0.0000000001"
+gasLimit: 300
+pledgeSectors: 1000
+collateralFil: 100
+storageprice: 0.00000001
+expiry: 28800
+
+clientDonotMining: "false"
+
+createMinerTryMaxNum: 365
+createMinerTryInterval: 10
+createMinerRetryMaxNum: 365
+createMinerRetryInterval: 10

@@ -1,0 +1,31 @@
+- hosts: "{{ miner_hosts }}"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: 验证备份文件是否存在
+      shell: chmod 775 /tmp/ChainData_Backup
+      ignore_errors: True
+      register: hasInstall
+
+    - name: 创建备份文件tmp
+      file:
+        path: /tmp/ChainData_Backup
+        state: directory
+        mode: 0775
+      when: hasInstall is failed
+
+    - name: 关闭存在的leaderBackupChain.py程序
+      ignore_errors: True
+      shell: "kill -9 `ps -u {{ minerUser }} -f | grep leaderBackupChain.py | grep -v grep | awk '{print $2}'`"
+
+    - name: 复制leaderBackupChain.py
+      copy:
+        force: true
+        dest: "~/bin/leaderBackupChain.py"
+        src: "./script/leaderBackupChain.py"
+        mode: 0750
+        owner: "{{ minerUser }}"
+
+    - name: 启动leaderBackupChain.py
+      shell: "setsid python ~/bin/leaderBackupChain.py   BackupChain leader_back_chain  --miner-user '{{ minerUser }}' > ~/log/leaderBackupChain.log 2>&1  &"

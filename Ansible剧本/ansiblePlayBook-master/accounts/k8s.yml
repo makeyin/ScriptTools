@@ -1,0 +1,21 @@
+- hosts: "xiangdao"
+  sudo: yes
+  vars:
+    users:
+      - username: "k8s"
+  tasks:
+    - name: "创建账户"
+      user:
+        name: "{{ item.username }}"
+      with_items: "{{ users }}"
+    - name: "添加授权文件"
+      authorized_key:
+        user: "{{ item.username }}"
+        key: "{{ lookup('file', 'publicKey/'+ item.username + '.key.pub') }}"
+      with_items: "{{ users }}"
+    - name: "授权用户为无密码sudo用户"
+      lineinfile:
+        dest: "/etc/sudoers"
+        state: "present"
+        regexp: "^%admin"
+        line: "%admin ALL=(ALL) NOPASSWD: ALL"

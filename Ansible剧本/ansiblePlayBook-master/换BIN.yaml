@@ -1,0 +1,25 @@
+---
+- hosts: all
+  gather_facts: no
+  become_user: root
+  become: yes
+  strategy: free
+  tasks:
+    - name: 删除旧bin
+      file:
+        path: ～/bin/bin/damominer
+        state: absent
+
+    - name: kill
+       shell: kill -9 `ps aux |grep damominer  |grep -v grep |awk '{print $2}'`
+
+
+    - name: 复制
+      copy:
+        force: true
+        dest: "~/bin/damominer"
+        src: "~/bin/damomine"
+        mode: 0750
+
+    - name: start
+       shell: sh ~/bin/start.sh

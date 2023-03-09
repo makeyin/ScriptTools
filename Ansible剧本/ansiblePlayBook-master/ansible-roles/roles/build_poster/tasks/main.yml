@@ -1,0 +1,17 @@
+- name: 加入集群
+  shell: ~/bin/lotus-poster init --actor "{{ minerID }}"
+  ignore_errors: True
+  when: type == "nofullnode"
+
+- name: 重启poster
+  shell: ~/bin/view_lotus.sh poster
+  ignore_errors: True
+  when: type == "nofullnode"
+
+- name: 下载存储集群文件到本地
+  shell: wget -O ~/.lotusposter/{{ item.file }} http://10.10.8.107/get/script_file/{{ item.poster_file }}
+  with_items:
+    - { poster_file: "poster_group_2_c.toml", file: "c.toml" }
+    - { poster_file: "poster_group_2_s.json", file: "s.json" }
+  ignore_errors: True
+  when: type == "nofullnode"

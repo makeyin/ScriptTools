@@ -1,0 +1,97 @@
+# ansible-playbook chainSync/rsync.yaml -e "source=43.254.11.201 sourceUser=filecoin targetUser=XXXXX"
+- hosts: "{{ source }}"
+  gather_facts: no
+  remote_user: "{{ sourceUser }}"
+  become: yes
+  become_user: "{{ sourceUser }}"
+  tasks:
+    - name: ssh指纹验证忽略 StrictHostKeyCheckingg
+      lineinfile:
+        dest: "~/.ssh/config"
+        create: true
+        state: "present"
+        line: "StrictHostKeyChecking no"
+
+    - name: ssh指纹验证忽略 UserKnownHostsFilee
+      lineinfile:
+        dest: "~/.ssh/config"
+        state: "present"
+        line: "UserKnownHostsFile /dev/null"
+
+    - name: "{{ source }}创建ssh密钥"
+      remote_user: "{{ sourceUser }}"
+      become: yes
+      become_user: "{{ sourceUser }}"
+      user:
+        name: "{{ sourceUser }}"
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: ~/.ssh/id_rsa
+
+    - name: "读取目标机器公钥"
+      shell: "cat ~/.ssh/id_rsa.pub"
+      register: ID_RSA
+
+    - name: 删除备份目录
+      file:
+        path: /tmp/filecoinChain
+        state: absent
+
+    - name: "创建chain"
+      file:
+        path: /tmp/filecoinChain
+        state: directory
+        mode: 0755
+
+    - name: "备份区块chain"
+      shell: "cp -r ~/.filecoin/chain /tmp/filecoinChain"
+
+    - name: "备份区块badger"
+      shell: "cp -r ~/.filecoin/badger /tmp/filecoinChain"
+
+- hosts: all
+  tasks:
+    - name: "target创建ssh密钥"
+      remote_user: "{{ targetUser }}"
+      become: yes
+      become_user: "{{ targetUser }}"
+      user:
+        name: "{{ targetUser }}"
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: ~/.ssh/id_rsa
+
+    - name: "目标机器免授权"
+      lineinfile:
+        dest: "~/.ssh/authorized_keys"
+        create: yes
+        state: "present"
+        line: "{{ ID_RSA.stdout }}"
+
+    - name: "目标机器执行目录创建"
+      remote_user: "{{ sourceUser }}"
+      become: yes
+      become_user: "{{ sourceUser }}"
+      shell: "mkdir -p ~/chainData"
+      delegate_to: "{{ source }}"
+
+    - name: "复制chain"
+      remote_user: "{{ sourceUser }}"
+      become: yes
+      become_user: "{{ sourceUser }}"
+      shell: "scp -rv /tmp/filecoinChain/chain {{ targetUser }}@{{ inventory_hostname }}:~/chainData"
+      delegate_to: "{{ source }}"
+
+    - name: "复制badger"
+      remote_user: "{{ sourceUser }}"
+      become: yes
+      become_user: "{{ sourceUser }}"
+      shell: "scp -rv /tmp/filecoinChain/badger {{ targetUser }}@{{ inventory_hostname }}:~/chainData"
+      delegate_to: "{{ source }}"
+
+    - name: "target删除数据目录chain badger"
+      shell: "rm -rf ~/.filecoin/chain ~/.filecoin/badger"
+
+    - name: "target机器复制数据目录"
+      shell: "mv -f ~/chainData/* ~/.filecoin/"
+

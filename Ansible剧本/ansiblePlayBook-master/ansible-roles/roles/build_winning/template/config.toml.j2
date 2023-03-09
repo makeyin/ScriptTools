@@ -1,0 +1,88 @@
+# Default config:
+GenesisTimestamp = 0
+
+[API]
+  ListenAddress = "/ip4/10.10.8.205/tcp/3345/http"
+  RemoteListenAddress = "10.10.8.205:3345"
+  Timeout = "30s"
+
+[Libp2p]
+  ListenPort = 7777
+  AnnounceAddresses = []
+  NoAnnounceAddresses = []
+  BootstrapPeers = []
+  ProtectedPeers = []
+  ConnMgrLow = 150
+  ConnMgrHigh = 2048
+  ConnMgrGrace = "20s"
+
+[Relation]
+  GroupName = "f0111007-window-winning"
+  EnableDtUseHttp = true
+  EnableOnlyStoreClusterPoSt = false
+  FullNodeToken = ""
+  WinningNodeToken = ""
+  WindowNodeToken = ""
+  WindowNodeTokenExt1 = ""
+  WindowMoreNodeToken = ""
+  WindowMoreNodeTokenExt1 = ""
+  OSPNodeToken = ""
+
+[Pubsub]
+  Bootstrapper = false
+  RemoteTracer = ""
+
+[BackUp]
+  BathPath = "/tank1/badger_bak"
+  Prefix = "7d5dc1f7-003e-44ea-b966-7165bb8191b3"
+  Interval = "30m"
+  MaxBackups = 7
+
+[Addresses]
+
+[ReplaceAddress]
+  Enable = true
+  Address = "f3vpekvgkcelcd6zkwmy644jhflr6uarz4jt5jkvvf63fo2c65kjwy2dvccnmw4po4fenuv5loa2ufh6qirrxa"
+  PreAddress = "f3veozahikugz6be36as4lk2ug7gdq7bydyrfonz7p6nrwqfnyn233cavlxwb7blpxfqt3edxi6c3ysbrbr2lq"
+
+[Winning]
+  Enable = true
+  FlexibleSleepTime = "18s"
+  SleepForSyncSeconds = "1s"
+  VanillaTimeout = 15
+  Skipstart = -1
+  Skipend = -1
+  MbiCheck = true
+  MbiTimeout = 15
+  SnarkCheck = false
+  SnarkTimeout = 25
+  ThirdBase = false
+  SyncEarly = false
+  SyncEarlyDelta = ""
+  SyncPrivateTopic = false
+  SyncRelation = false
+  IsSelectMsgs = true
+  PubsubDrift = "500ms"
+
+[ProxyPoSt]
+  SelfPoster = ""
+  MasterRetryTimes = 3
+  MasterRetryTimeinterval = 15
+
+[ClusterPeers]
+  Enable = true
+  ClusterPeers = ["12D3KooWMCSn9y4GzCGtShUNa7hjs639LdDNvawBLYUFeXHHAXXX"]
+
+[Stragory]
+  UsingCustomStrategy = false
+  Strategy = ""
+
+[Storage]
+  ParallelFetchLimit = 0
+  AllowAddPiece = false
+  AllowPreCommit1 = true
+  AllowPreCommit2 = true
+  AllowCommit = true
+  AllowUnseal = false
+
+

@@ -1,0 +1,108 @@
+- name: 下载bin
+  shell: wget -P /home/devnet/bin/ http://10.10.8.107/get/tar_file/{{bin_name}}
+  when: type == "nofullnode" and finish_miner == false
+
+- name: Bin解压
+  shell: cd ~/bin/;tar xvf {{bin_name}} -C ~/bin/
+  when: type == "nofullnode" and finish_miner == false
+
+- name: 下载参数文件
+  shell: wget -P /tank1/filecoin-proof-parameters/ http://10.10.8.107/get/tar_file/64G_pow_arg.tar
+  when: sector_size == 64 and finish_miner == false and type == "nofullnode"
+
+- name: 解压参数文件
+  shell: cd /tank1/filecoin-proof-parameters/;tar xvf 64G_pow_arg.tar -C /tank1/filecoin-proof-parameters/
+  when: sector_size == 64 and finish_miner == false and type == "nofullnode"
+
+- name: 下载参数文件
+  shell: wget -P /tank1/filecoin-proof-parameters/ http://10.10.8.107/get/tar_file/32G_pow_arg.tar
+  when: sector_size == 32 and finish_miner == false and type == "nofullnode"
+
+- name: 解压参数文件
+  shell: cd /tank1/filecoin-proof-parameters/;tar xvf 32G_pow_arg.tar -C /tank1/filecoin-proof-parameters/
+  when: sector_size == 32 and finish_miner == false and type == "nofullnode"
+  
+#- name: Power删除当前config.toml，加入节点
+#  shell: mv ~/.lotusminer ~/.lotusminer_bak
+#  ignore_errors: True
+#  when: host == "power" and finish_miner == true
+#
+#- name: Power加入节点
+#  shell: "export FULLNODE_API_INFO={{ fullnode1_link }} ;export TRUST_PARAMS=1;~/bin/lotus-power init --actor {{minerID}} > ~/create_miner.logs"
+#  when: host == "power" and finish_miner == true
+#
+#- name: fullnode1执行脚本
+#  shell: sh ~/auto_msg_nonce.sh
+#  when: host == "fullnode1" and finish_miner == true
+
+#- name: 启动power
+#  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} && ~/bin/view_lotus.sh power
+#  when: host == "power" and finish_miner == true
+
+- name: Power创建自动转账文件夹
+  shell: mkdir ~/joyce
+  when: host == "power" and finish_miner == true
+
+- name: Power下载自动转账脚本
+  shell: wget -O ~/joyce/autoGasConfig.py http://10.10.8.107/get/script_file/autoGasConfig.py ; chmod +x ~/joyce/autoGasConfig.py
+  when: host == "power" and finish_miner == true
+
+- name: Power自动转账定时任务
+  cron: 
+    name: "自动转账"
+    user: devnet
+    minute: "6"
+    job: "export FULLNODE_API_INFO\={{ fullnode1_link }} ; python3 ~/joyce/autoGasConfig.py >> ~/joyce/autoGasConfig.log"
+  when: host == "power" and finish_miner == true
+
+- name: Power添加钱包地址
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ; ~/bin/lotus-power actor control set --really-do-it {{ wallet1_loca }} {{ wallet2_loca }} {{ wallet3_loca }} {{ wallet4_loca }}
+  register: addwallet_message
+  when: host == "power" and finish_miner == true
+
+- name: 等待钱包添加完成
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ; ~/bin/lotus-power actor control list --verbose
+  ignore_errors: True
+  register: add_wallet
+  until: "'control-3' in add_wallet.stdout"
+  retries: "10"
+  delay: "60"
+  when: finish_miner == true and host == "power" and "'control-3' not in add_wallet.stdout" 
+
+- name: Power获取钱包序号
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ; ~/bin/lotus-power actor control list --verbose |grep control-0 |awk '{print $2}'
+  register: control0_id
+  when: host == "power" and finish_miner == true
+
+- name: Power获取钱包序号
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ; ~/bin/lotus-power actor control list --verbose |grep control-1 |awk '{print $2}'
+  register: control1_id
+  when: host == "power" and finish_miner == true
+
+- name: Power获取钱包序号
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ; ~/bin/lotus-power actor control list --verbose |grep control-2 |awk '{print $2}'
+  register: control2_id
+  when: host == "power" and finish_miner == true
+
+- name: Power获取钱包序号
+  shell: export FULLNODE_API_INFO\={{ fullnode1_link }} ; ~/bin/lotus-power actor control list --verbose |grep control-3 |awk '{print $2}'
+  register: control3_id
+  when: host == "power" and finish_miner == true
+
+- name: 写入变量文件
+  remote_user: "{{ sourceUser }}"
+  ignore_errors: True
+  become: yes
+  become_user: "{{ sourceUser }}"
+  shell: "echo {{ item.export}}: {{ item.wallet }} >> /home/ansible/ansiblePlayBook/work_everyday/jenkins/build_master/group_vars/build_vars.yml"
+  with_items:
+    - {export: "control_0" , wallet: "{{ control0_id.stdout }}" }
+    - {export: "control_1" , wallet: "{{ control1_id.stdout }}" }
+    - {export: "control_2" , wallet: "{{ control2_id.stdout }}" }
+    - {export: "control_3" , wallet: "{{ control3_id.stdout }}" }
+  delegate_to: "{{ source }}"
+  when: host == "power" and finish_miner == true
+
+- name: Power添加钱包 上链消息
+  debug: var=addwallet_message.stdout verbosity=0
+  when: host == "power" and finish_miner == true

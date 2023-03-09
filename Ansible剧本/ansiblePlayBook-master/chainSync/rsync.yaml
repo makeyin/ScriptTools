@@ -1,0 +1,93 @@
+# ansible-playbook chainSync/rsync.yaml -e "source=43.254.11.201 target=43.254.11.194 minerUser=filecoin"
+- hosts: "{{ source }}"
+  gather_facts: no
+  remote_user: "{{ minerUser }}"
+  become: yes
+  become_user: "{{ minerUser }}"
+  tasks:
+    - name: ssh指纹验证忽略 StrictHostKeyChecking
+      lineinfile:
+        dest: "~/.ssh/config"
+        create: true
+        state: "present"
+        line: "StrictHostKeyChecking no"
+
+    - name: ssh指纹验证忽略 UserKnownHostsFile
+      lineinfile:
+        dest: "~/.ssh/config"
+        state: "present"
+        line: "UserKnownHostsFile /dev/null"
+
+    - name: "{{ source }}创建ssh密钥"
+      remote_user: "{{ minerUser }}"
+      become: yes
+      become_user: "{{ minerUser }}"
+      user:
+        name: "{{ minerUser }}"
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: ~/.ssh/id_rsa
+
+    - name: "{{ target }}创建ssh密钥"
+      remote_user: "{{ minerUser }}"
+      become: yes
+      become_user: "{{ minerUser }}"
+      user:
+        name: "{{ minerUser }}"
+        generate_ssh_key: yes
+        ssh_key_bits: 2048
+        ssh_key_file: ~/.ssh/id_rsa
+      delegate_to: "{{ target }}"
+
+    - name: "读取目标机器公钥"
+      shell: "cat ~/.ssh/id_rsa.pub"
+      register: ID_RSA
+
+    - name: "目标机器免授权"
+      lineinfile:
+        dest: "~/.ssh/authorized_keys"
+        create: yes
+        state: "present"
+        line: "{{ ID_RSA.stdout }}"
+      delegate_to: "{{ target }}"
+
+    - name: 删除备份目录
+      file:
+        path: /tmp/filecoinChain
+        state: absent
+
+    - name: "创建chain"
+      file:
+        path: /tmp/filecoinChain
+        state: directory
+        mode: 0755
+
+    - name: "备份区块chain"
+      shell: "cp -r ~/.filecoin/chain /tmp/filecoinChain"
+
+    - name: "备份区块badger"
+      shell: "cp -r ~/.filecoin/badger /tmp/filecoinChain"
+
+    - name: "目标机器执行目录创建"
+      shell: "mkdir -p ~/chainData"
+      delegate_to: "{{ target }}"
+
+    - name: "复制chain"
+      shell: "scp -rv /tmp/filecoinChain/chain {{ minerUser }}@{{ target }}:~/chainData"
+
+    - name: "复制badger"
+      shell: "scp -rv /tmp/filecoinChain/badger {{ minerUser }}@{{ target }}:~/chainData"
+
+    - name: "{{ target }}删除数据目录chain badger"
+      shell: "rm -rf ~/.filecoin/chain ~/.filecoin/badger"
+      remote_user: "{{ minerUser }}"
+      become: yes
+      become_user: "{{ minerUser }}"
+      delegate_to: "{{ target }}"
+
+    - name: "机器复制数据目录"
+      shell: "mv -f ~/chainData/* ~/.filecoin/"
+      remote_user: "{{ minerUser }}"
+      become: yes
+      become_user: "{{ minerUser }}"
+      delegate_to: "{{ target }}"
